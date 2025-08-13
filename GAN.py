@@ -61,11 +61,12 @@ class Discriminator(nn.Module):
         return val
 
 class GAN:
-    def __init__(self, lr, latent_dim, batch_size):
+    def __init__(self, lr, latent_dim, batch_size, epochs):
         super(GAN, self).__init__()
 
         self.latent_dim = latent_dim
         self.batch_size = batch_size
+        self.epochs = epochs
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -102,13 +103,35 @@ class GAN:
             batch.append(tensor)
         batch = torch.stack(batch).to(self.device)
         return batch
+    def train(self):
+        for epoch in range(self.epochs):
+            batch = self.get_batch()
 
+            real_target = torch.ones(batch.size(0), 1).to(self.device)
+            fake_target = torch.zeros(batch.size(0), 1).to(self.device)
 
+            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+            with torch.no_grad():
+                gen_img = self.generator(noise)
 
-gan = GAN(lr=0.00001, latent_dim=100, batch_size=32)
-print(gan.device)
+            d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
 
-batch = gan.get_batch()
+            gen_img = self.generator(noise)
 
-print(batch.shape)
-print(batch[0].shape)
+            with torch.no_grad():
+                val = self.discriminator(gen_img)
+
+            g_loss = self.loss(val, real_target)
+
+            self.optim_g.zero_grad()
+            self.optim_d.zero_grad()
+
+            d_loss.backward()
+            g_loss.backward()
+
+            self.optim_g.step()
+            self.optim_d.step()
+
+            self.save()
+
+gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=100)
