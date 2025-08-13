@@ -12,13 +12,13 @@ class Generator(nn.Module):
     def __init__(self, latent_dim):
         super(Generator, self).__init__()
         self.main = nn.Sequential(
-            nn.Linear(latent_dim, 128 * 256 * 128),
+            nn.Linear(latent_dim, 128 * 64 * 32),
             nn.ReLU(),
-            nn.Unflatten(1,(128, 256, 128)),
+            nn.Unflatten(1,(128, 64, 32)),
 
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=4),
             nn.Conv2d(128, 128, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
 
             nn.Upsample(scale_factor=2),
@@ -26,7 +26,12 @@ class Generator(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
 
-            nn.Conv2d(64, 3, kernel_size=3, padding=1),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(64, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+
+            nn.Conv2d(32, 3, kernel_size=3, padding=1),
             nn.Tanh() #Based on transform.Compose
         )
     def forward(self, input):
@@ -47,13 +52,18 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
+            nn.Conv2d(128, 128, 3, 2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
             nn.Conv2d(128, 256, 3, 1,padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
             nn.Flatten(),
-            nn.Linear(256*256*128, 1),
+            nn.Linear(2097152, 1),
             nn.Sigmoid()
         )
     def forward(self, input):
@@ -83,6 +93,9 @@ class GAN:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
+        self.total_g_loss = []
+        self.total_d_loss = []
+
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
         torch.save(self.discriminator.state_dict(), 'discriminator.pth')
@@ -91,7 +104,6 @@ class GAN:
         self.discriminator.load_state_dict(torch.load('discriminator.pth'))
     def get_batch(self):
         idx = random.randint(0, 9)
-        print(idx)
 
         nums = random.sample(range(1000), 32)
         batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
@@ -118,8 +130,7 @@ class GAN:
 
             gen_img = self.generator(noise)
 
-            with torch.no_grad():
-                val = self.discriminator(gen_img)
+            val = self.discriminator(gen_img)
 
             g_loss = self.loss(val, real_target)
 
@@ -132,6 +143,18 @@ class GAN:
             self.optim_g.step()
             self.optim_d.step()
 
+            print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}")
+            self.total_g_loss.append(g_loss.item())
+            self.total_d_loss.append(d_loss.item())
+
             self.save()
+    def graph(self):
+        plt.plot(self.total_g_loss, label="G_Loss")
+        plt.plot(self.total_d_loss, label="D_Loss")
+        plt.legend()
+        plt.show()
 
 gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=100)
+gan.load()
+gan.train()
+gan.graph()
