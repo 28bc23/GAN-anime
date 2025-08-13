@@ -6,8 +6,6 @@ from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -59,3 +57,17 @@ class Discriminator(nn.Module):
     def forward(self, input):
         val = self.main(input)
         return val
+
+class GAN:
+    def __init__(self, lr):
+        super(GAN, self).__init__()
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.generator = Generator().to(self.device)
+        self.discriminator = Discriminator().to(self.device)
+
+        self.loss = nn.BCELoss()
+
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr)
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr)
