@@ -71,3 +71,9 @@ class GAN:
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr)
+    def save(self):
+        torch.save(self.generator.state_dict(), 'generator.pth')
+        torch.save(self.discriminator.state_dict(), 'discriminator.pth')
+    def load(self):
+        self.generator.load_state_dict(torch.load('generator.pth'))
+        self.discriminator.load_state_dict(torch.load('discriminator.pth'))
