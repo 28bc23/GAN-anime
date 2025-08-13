@@ -1,16 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision
-from torchvision import datasets, transforms
+from torchvision import transforms
 import matplotlib.pyplot as plt
 import numpy as np
+import random
+import os
+from PIL import Image
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_dim):
         super(Generator, self).__init__()
         self.main = nn.Sequential(
-            nn.Linear(1024 * 512, 128 * 256 * 128),
+            nn.Linear(latent_dim, 128 * 256 * 128),
             nn.ReLU(),
             nn.Unflatten(1,(128, 256, 128)),
 
@@ -59,21 +61,54 @@ class Discriminator(nn.Module):
         return val
 
 class GAN:
-    def __init__(self, lr):
+    def __init__(self, lr, latent_dim, batch_size):
         super(GAN, self).__init__()
+
+        self.latent_dim = latent_dim
+        self.batch_size = batch_size
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.generator = Generator().to(self.device)
+        self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
 
         self.loss = nn.BCELoss()
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr)
+
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
         torch.save(self.discriminator.state_dict(), 'discriminator.pth')
     def load(self):
         self.generator.load_state_dict(torch.load('generator.pth'))
         self.discriminator.load_state_dict(torch.load('discriminator.pth'))
+    def get_batch(self):
+        idx = random.randint(0, 9)
+        print(idx)
+
+        nums = random.sample(range(1000), 32)
+        batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
+
+        batch = []
+        for f in batch_files:
+            img = Image.open(f).convert('RGB')
+            tensor = self.transform(img)
+            batch.append(tensor)
+        batch = torch.stack(batch).to(self.device)
+        return batch
+
+
+
+gan = GAN(lr=0.00001, latent_dim=100, batch_size=32)
+print(gan.device)
+
+batch = gan.get_batch()
+
+print(batch.shape)
+print(batch[0].shape)
