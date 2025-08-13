@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torchvision
+from torchvision import datasets, transforms
+import matplotlib.pyplot as plt
+import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -32,4 +36,26 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.main = nn.Sequential()
+        self.main = nn.Sequential(
+            nn.Conv2d(3, 64, 3, 2,padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(64, 128, 3, 2,padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(128, 256, 3, 1,padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Flatten(),
+            nn.Linear(256*256*128, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, input):
+        val = self.main(input)
+        return val
