@@ -161,6 +161,8 @@ class GAN:
         self.total_g_loss = []
         self.total_d_loss = []
 
+        self.d_epoch = 1
+
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
         torch.save(self.discriminator.state_dict(), 'discriminator.pth')
@@ -188,24 +190,35 @@ class GAN:
             fake_label_val = 0.0
 
             real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
-            fake_target = (torch.zeros(batch.size(0), 1) * fake_label_val).to(self.device)
+            fake_target = (torch.zeros(batch.size(0), 1)).to(self.device)
+
 
             # ---- Discriminator optim ----
-            self.optim_d.zero_grad()
+            if epoch % self.d_epoch == 0:
+                if random.random() < 0.05:
+                    real_target, fake_target = fake_target, real_target
 
-            noise_scale = 0.02
-            real_in = batch + noise_scale * torch.randn_like(batch)
+                self.optim_d.zero_grad()
 
-            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-            gen_img = self.generator(noise).detach()
-            gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
+                noise_scale = 0.01
+                real_in = batch + noise_scale * torch.randn_like(batch)
 
-            out_real = self.discriminator(real_in)
-            out_fake = self.discriminator(gen_in)
+                noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+                gen_img = self.generator(noise).detach()
+                gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
 
-            d_loss = (self.loss(out_fake, fake_target) + self.loss(out_real, real_target)) / 2
-            d_loss.backward()
-            self.optim_d.step()
+                out_real = self.discriminator(real_in)
+                out_fake = self.discriminator(gen_in)
+
+                d_loss = (self.loss(out_fake, fake_target) + self.loss(out_real, real_target)) / 2
+                d_loss.backward()
+                self.optim_d.step()
+
+                real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
+                if d_loss.item() < 0.5:
+                    self.d_epoch = 4
+                else:
+                    self.d_epoch = 1
 
             # ---- Generator optim ----
             self.optim_g.zero_grad()
@@ -234,7 +247,7 @@ class GAN:
             img = self.generator(noise)
         return img
 
-gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=32, epochs=300)
+gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=16, epochs=1000)
 print(gan.device)
 #gan.load()
 gan.train()
