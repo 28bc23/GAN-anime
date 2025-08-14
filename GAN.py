@@ -180,7 +180,7 @@ class GAN:
             self.optim_d.zero_grad()
 
             noise_scale = 0.01
-            real_in = batch + noise_scale * torch.randn_like(batch)
+            real_in = (batch + noise_scale * torch.randn_like(batch)).clone().detach().requires_grad_(True)
 
             noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
             gen_img = self.generator(noise).detach()
@@ -190,6 +190,10 @@ class GAN:
             out_fake = self.discriminator(gen_in)
 
             d_loss = torch.mean(F.relu(1.0 - out_real)) + torch.mean(F.relu(1.0 + out_fake))
+            grad_real = torch.autograd.grad(outputs=out_real.sum(), inputs=real_in, create_graph=True)[0]
+            r1 = (grad_real.view(grad_real.size(0), -1).pow(2).sum(1)).mean()
+            d_loss = d_loss + 0.5 * 10 * r1
+
             d_loss.backward()
             self.optim_d.step()
 
@@ -205,7 +209,12 @@ class GAN:
             self.optim_g.step()
 
             # ---- Graph data ----
-            print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}")
+            print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}"
+                  f", out_real mean/std: {out_real.detach().cpu().mean().item()}/"
+                  f"{out_real.detach().cpu().std().item()}"
+                  f", out_fake mean/std: {out_fake.detach().cpu().mean().item()}/"
+                  f"{out_fake.detach().cpu().std().item()}")
+
             self.total_g_loss.append(g_loss.item())
             self.total_d_loss.append(d_loss.item())
 
@@ -234,9 +243,9 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=13, epochs=100)
+gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=8, epochs=100)
 print(gan.device)
-gan.load()
+#gan.load()
 gan.train()
 img = gan.generate()
 img = (img + 1) / 2
