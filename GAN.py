@@ -24,52 +24,46 @@ class Generator(nn.Module):
         )
 
         self.block = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Upsample(scale_factor=4, mode='bilinear'),
             nn.Conv2d(512, 512, 3, padding=1),
-            nn.GroupNorm(8, 512),
-            nn.ReLU()
+            nn.BatchNorm2d(512),
+            nn.ReLU(True)
         )
         self.block1 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.GroupNorm(8, 512),
-            nn.ReLU()
+            nn.Conv2d(512, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True)
         )
         self.block2 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(512, 256, 3, padding=1),
-            nn.GroupNorm(8, 256),
-            nn.ReLU()
+            nn.Conv2d(256, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True)
         )
         self.block3 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(256, 128, 3, padding=1),
-            nn.GroupNorm(8,128),
-            nn.ReLU()
+            nn.Conv2d(128, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True)
         )
         self.block4 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(128, 64, 3, padding=1),
-            nn.GroupNorm(8,64),
-            nn.ReLU()
+            nn.Conv2d(64, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True)
         )
         self.block5 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(64, 32, 3, padding=1),
-            nn.GroupNorm(8,32),
-            nn.ReLU()
+            nn.Conv2d(32, 16, 3, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True)
         )
         self.block6 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(32, 16, 3, padding=1),
-            nn.GroupNorm(8,16),
-            nn.ReLU()
-        )
-        self.block7 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(16, 8, 3, padding=1),
-            nn.GroupNorm(8,8),
-            nn.ReLU()
+            nn.BatchNorm2d(8),
+            nn.ReLU(True)
         )
 
         self.final = nn.Sequential(
@@ -82,13 +76,10 @@ class Generator(nn.Module):
         x = self.block(x)
         x = self.block1(x)
         x = self.block2(x)
-        #TODO: Self attention
         x = self.block3(x)
         x = self.block4(x)
         x = self.block5(x)
-        #TODO: Self attention
         x = self.block6(x)
-        x = self.block7(x)
 
         img = self.final(x)
         return img
