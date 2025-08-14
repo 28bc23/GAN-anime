@@ -1,4 +1,4 @@
-GAN trained for nearly generating anime girls
+GAN trained for nearly generating anime girls. I would appreciate feedback on how to improve this GAN, thx.
 :)
 
 **Dataset I used**: https://huggingface.co/datasets/skytnt/fbanimehq/blob/main/data/fbanimehq-00.zip
