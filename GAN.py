@@ -3,21 +3,24 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 import matplotlib.pyplot as plt
-import numpy as np
 import random
-import os
 from PIL import Image
 
 class Generator(nn.Module):
     def __init__(self, latent_dim):
         super(Generator, self).__init__()
         self.main = nn.Sequential(
-            nn.Linear(latent_dim, 128 * 64 * 32),
+            nn.Linear(latent_dim, 256 * 64 * 32),
             nn.ReLU(),
-            nn.Unflatten(1,(128, 64, 32)),
+            nn.Unflatten(1,(256, 64, 32)),
 
-            nn.Upsample(scale_factor=4),
-            nn.Conv2d(128, 128, 3, padding=1),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
 
@@ -42,12 +45,12 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            nn.Conv2d(3, 64, 3, 2,padding=1),
+            nn.Conv2d(3, 64, 3, 8,padding=1),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
-            nn.Conv2d(64, 128, 3, 2,padding=1),
+            nn.Conv2d(64, 128, 3, 4,padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
@@ -57,13 +60,14 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
-            nn.Conv2d(128, 256, 3, 1,padding=1),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 128, 3, 1,padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
             nn.Flatten(),
-            nn.Linear(2097152, 1),
+            nn.Linear(16384, 1),
             nn.Sigmoid()
         )
     def forward(self, input):
@@ -85,8 +89,8 @@ class GAN:
 
         self.loss = nn.BCELoss()
 
-        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr)
-        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr)
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr, betas=(0.5, 0.999))
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -122,39 +126,56 @@ class GAN:
             real_target = torch.ones(batch.size(0), 1).to(self.device)
             fake_target = torch.zeros(batch.size(0), 1).to(self.device)
 
-            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-            with torch.no_grad():
+            if epoch % 5 == 0:
+                rand = random.randint(0, 25)
+                target = random.randint(0, 25)
+                if rand == target:
+                    print("---switch---")
+                    real_target = torch.zeros(batch.size(0), 1).to(self.device)
+                    fake_target = torch.ones(batch.size(0), 1).to(self.device)
+
+                self.optim_d.zero_grad()
+                noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
                 gen_img = self.generator(noise)
 
-            d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
+                d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
 
-            gen_img = self.generator(noise)
+                d_loss.backward()
+                self.optim_d.step()
 
-            val = self.discriminator(gen_img)
-
-            g_loss = self.loss(val, real_target)
+            real_target = torch.ones(batch.size(0), 1).to(self.device)
 
             self.optim_g.zero_grad()
-            self.optim_d.zero_grad()
 
-            d_loss.backward()
+            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+            fake_images = self.generator(noise)
+            g_loss = self.loss(self.discriminator(fake_images), real_target)
+
             g_loss.backward()
-
             self.optim_g.step()
-            self.optim_d.step()
 
             print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}")
             self.total_g_loss.append(g_loss.item())
             self.total_d_loss.append(d_loss.item())
 
             self.save()
+        self.graph()
     def graph(self):
         plt.plot(self.total_g_loss, label="G_Loss")
         plt.plot(self.total_d_loss, label="D_Loss")
         plt.legend()
         plt.show()
+    def generate(self):
+        with torch.no_grad():
+            noise = torch.randn(1, self.latent_dim, device=self.device)
+            img = self.generator(noise)
+        return img
 
-gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=100)
+gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=300)
+print(gan.device)
 gan.load()
-gan.train()
-gan.graph()
+#gan.train()
+img = gan.generate()
+img = (img + 1) / 2
+plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
+plt.show()
