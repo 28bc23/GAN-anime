@@ -21,49 +21,49 @@ class Generator(nn.Module):
         self.block = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(512, 512, 3, padding=1),
-            nn.BatchNorm2d(512),
+            nn.GroupNorm(8, 512),
             nn.ReLU()
         )
         self.block1 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(512, 512, 3, padding=1),
-            nn.BatchNorm2d(512),
+            nn.GroupNorm(8, 512),
             nn.ReLU()
         )
         self.block2 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(512, 256, 3, padding=1),
-            nn.BatchNorm2d(256),
+            nn.GroupNorm(8, 256),
             nn.ReLU()
         )
         self.block3 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(256, 128, 3, padding=1),
-            nn.BatchNorm2d(128),
+            nn.GroupNorm(8,128),
             nn.ReLU()
         )
         self.block4 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(128, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.GroupNorm(8,64),
             nn.ReLU()
         )
         self.block5 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(64, 32, 3, padding=1),
-            nn.BatchNorm2d(32),
+            nn.GroupNorm(8,32),
             nn.ReLU()
         )
         self.block6 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(32, 16, 3, padding=1),
-            nn.BatchNorm2d(16),
+            nn.GroupNorm(8,16),
             nn.ReLU()
         )
         self.block7 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(16, 8, 3, padding=1),
-            nn.BatchNorm2d(8),
+            nn.GroupNorm(8,8),
             nn.ReLU()
         )
 
@@ -139,8 +139,8 @@ class GAN:
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
 
-        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.999))
-        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.999))
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.99))
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.99))
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
