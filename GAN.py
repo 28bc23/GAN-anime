@@ -5,69 +5,140 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import random
 from PIL import Image
+from torch import functional as F
 
 class Generator(nn.Module):
     def __init__(self, latent_dim):
         super(Generator, self).__init__()
-        self.main = nn.Sequential(
-            nn.Linear(latent_dim, 256 * 64 * 32),
-            nn.ReLU(),
-            nn.Unflatten(1,(256, 64, 32)),
 
+        self.fc = nn.Sequential(
+            nn.Linear(latent_dim, 1024 * 4 * 2),
+            nn.ReLU(),
+            nn.Unflatten(1,(1024, 4, 2)),
+        )
+
+        self.block = nn.Sequential(
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(256, 256, 3, padding=1),
+            nn.Conv2d(1024, 1024, 3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU()
+        )
+        self.block1 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(1024, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU()
+        )
+        self.block2 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(512, 256, 3, padding=1),
             nn.BatchNorm2d(256),
-            nn.ReLU(),
-
+            nn.ReLU()
+        )
+        self.block3 = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv2d(256, 128, 3, padding=1),
             nn.BatchNorm2d(128),
-            nn.ReLU(),
-
+            nn.ReLU()
+        )
+        self.block4 = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, 3, padding=1),
             nn.BatchNorm2d(64),
-            nn.ReLU(),
-
+            nn.ReLU()
+        )
+        self.block5 = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv2d(64, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(),
-
-            nn.Conv2d(32, 3, kernel_size=3, padding=1),
-            nn.Tanh() #Based on transform.Compose
+            nn.ReLU()
+        )
+        self.block6 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(32, 16, 3, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+        self.block7 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(16, 8, 3, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU()
+        )
+        self.block8 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(8, 3, 3, padding=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU()
         )
     def forward(self, input):
-        img = self.main(input)
+        x = self.fc(input)
+        x = self.block(x)
+        x = self.block1(x)
+        x = self.block2(x)
+        #TODO: Self attention
+        x = self.block3(x)
+        x = self.block4(x)
+        x = self.block5(x)
+        #TODO: Self attention
+        x = self.block6(x)
+        x = self.block7(x)
+        x = self.block8(x)
+
+        img = torch.tanh(x)
         return img
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            nn.Conv2d(3, 64, 3, 8,padding=1),
+            nn.Conv2d(3, 8, 3, 2,padding=1), #1024 -> 512; 512 -> 256
+            nn.BatchNorm2d(8),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(8, 16, 3, 2,padding=1), #512 -> 256; 256 -> 128
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(16, 32, 3, 2, padding=1), #256 -> 128; 128 -> 64
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(32, 64, 3, 2,padding=1), #128 -> 64; 64 -> 32
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
-            nn.Conv2d(64, 128, 3, 4,padding=1),
+            nn.Conv2d(64, 128, 3, 2, padding=1), #64 -> 32; 32 -> 16
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
-            nn.Conv2d(128, 128, 3, 2, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 256, 3, 2, padding=1), #32 -> 16; 16 -> 8
+            nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
-            nn.Conv2d(128, 128, 3, 1,padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(256, 512, 3, 2, padding=1), #16 -> 8; 8 -> 4
+            nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(512, 1024, 3, 2, padding=1), #8 -> 4; 4 -> 2
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(0.25),
+
+            nn.Conv2d(1024, 1024, 3, 1, padding=1),  # 4 -> 4; 2 -> 2
+            nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(0.25),
 
             nn.Flatten(),
-            nn.Linear(16384, 1),
+            nn.Linear(1024 * 4 * 2, 1),
             nn.Sigmoid()
         )
     def forward(self, input):
@@ -126,34 +197,23 @@ class GAN:
             real_target = torch.ones(batch.size(0), 1).to(self.device)
             fake_target = torch.zeros(batch.size(0), 1).to(self.device)
 
-            if epoch % 5 == 0:
-                rand = random.randint(0, 25)
-                target = random.randint(0, 25)
-                if rand == target:
-                    print("---switch---")
-                    real_target = torch.zeros(batch.size(0), 1).to(self.device)
-                    fake_target = torch.ones(batch.size(0), 1).to(self.device)
+            # ---- Discriminator optim ----
+            self.optim_d.zero_grad()
+            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+            gen_img = self.generator(noise).detach()
+            d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
+            d_loss.backward()
+            self.optim_d.step()
 
-                self.optim_d.zero_grad()
-                noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-                gen_img = self.generator(noise)
-
-                d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
-
-                d_loss.backward()
-                self.optim_d.step()
-
-            real_target = torch.ones(batch.size(0), 1).to(self.device)
-
+            # ---- Generator optim ----
             self.optim_g.zero_grad()
-
             noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
             fake_images = self.generator(noise)
             g_loss = self.loss(self.discriminator(fake_images), real_target)
-
             g_loss.backward()
             self.optim_g.step()
 
+            # ---- Graph data ----
             print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}")
             self.total_g_loss.append(g_loss.item())
             self.total_d_loss.append(d_loss.item())
@@ -174,7 +234,7 @@ class GAN:
 gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=300)
 print(gan.device)
 gan.load()
-#gan.train()
+gan.train()
 img = gan.generate()
 img = (img + 1) / 2
 plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
