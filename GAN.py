@@ -92,60 +92,50 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
             nn.Conv2d(3, 8, 3, 2,padding=1), #1024 -> 512; 512 -> 256
-            nn.BatchNorm2d(8),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(8, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(8, 16, 3, 2,padding=1), #512 -> 256; 256 -> 128
-            nn.BatchNorm2d(16),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(16, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(16, 32, 3, 2, padding=1), #256 -> 128; 128 -> 64
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(32, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(32, 64, 3, 2,padding=1), #128 -> 64; 64 -> 32
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(64, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(64, 128, 3, 2, padding=1), #64 -> 32; 32 -> 16
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(128, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(128, 256, 3, 2, padding=1), #32 -> 16; 16 -> 8
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(256, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(256, 512, 3, 2, padding=1), #16 -> 8; 8 -> 4
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(512, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(512, 1024, 3, 2, padding=1), #8 -> 4; 4 -> 2
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.InstanceNorm2d(1024, affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(1024, 1024, 3, 1, padding=1),  # 4 -> 4; 2 -> 2
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2),
-            nn.Dropout2d(0.25),
+            nn.utils.spectral_norm(nn.Conv2d(1024, 1024, 3, 1, padding=1)),  # 4 -> 4; 2 -> 2
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Flatten(),
             nn.Linear(1024 * 4 * 2, 1),
-            nn.Sigmoid()
+            #nn.Sigmoid()
         )
     def forward(self, input):
         val = self.main(input)
         return val
 
 class GAN:
-    def __init__(self, lr, latent_dim, batch_size, epochs):
+    def __init__(self, lr_g, lr_d, latent_dim, batch_size, epochs):
         super(GAN, self).__init__()
 
         self.latent_dim = latent_dim
@@ -158,10 +148,10 @@ class GAN:
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
 
-        self.loss = nn.BCELoss()
+        self.loss = nn.BCEWithLogitsLoss()
 
-        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr, betas=(0.5, 0.999))
-        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.5, 0.999))
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.5, 0.999))
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -194,14 +184,26 @@ class GAN:
         for epoch in range(self.epochs):
             batch = self.get_batch()
 
-            real_target = torch.ones(batch.size(0), 1).to(self.device)
-            fake_target = torch.zeros(batch.size(0), 1).to(self.device)
+            real_label_val = 0.9
+            fake_label_val = 0.0
+
+            real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
+            fake_target = (torch.zeros(batch.size(0), 1) * fake_label_val).to(self.device)
 
             # ---- Discriminator optim ----
             self.optim_d.zero_grad()
+
+            noise_scale = 0.02
+            real_in = batch + noise_scale * torch.randn_like(batch)
+
             noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
             gen_img = self.generator(noise).detach()
-            d_loss = (self.loss(self.discriminator(gen_img), fake_target) + self.loss(self.discriminator(batch), real_target)) / 2
+            gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
+
+            out_real = self.discriminator(real_in)
+            out_fake = self.discriminator(gen_in)
+
+            d_loss = (self.loss(out_fake, fake_target) + self.loss(out_real, real_target)) / 2
             d_loss.backward()
             self.optim_d.step()
 
@@ -218,7 +220,8 @@ class GAN:
             self.total_g_loss.append(g_loss.item())
             self.total_d_loss.append(d_loss.item())
 
-            self.save()
+            if epoch % 10 == 0:
+                self.save()
         self.graph()
     def graph(self):
         plt.plot(self.total_g_loss, label="G_Loss")
@@ -231,7 +234,7 @@ class GAN:
             img = self.generator(noise)
         return img
 
-gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=300)
+gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=32, epochs=300)
 print(gan.device)
 #gan.load()
 gan.train()
