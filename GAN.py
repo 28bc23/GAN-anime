@@ -71,7 +71,7 @@ class Generator(nn.Module):
             nn.Tanh()
         )
     def forward(self, input):
-        x = self.fc(input)
+        x = input
 
         x = self.block(x)
         x = self.block1(x)
@@ -154,7 +154,7 @@ class GAN:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
-        self.fixed_noise = torch.randn(1, self.latent_dim, device=self.device)
+        self.fixed_noise = torch.randn(1, self.latent_dim, 4, 2, device=self.device)
 
         self.total_g_loss = []
         self.total_d_loss = []
@@ -201,7 +201,7 @@ class GAN:
             d_loss_r.backward()
             r_d = r_out.mean().item()
             # -- fake --
-            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+            noise = torch.randn(batch.size(0), self.latent_dim, 4, 2, device=self.device)
             f = self.generator(noise)
             label.fill_(self.fake_label)
             f_out = self.discriminator(f.detach()).view(-1)
@@ -259,7 +259,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=8, epochs=10000)
+gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=512, batch_size=8, epochs=5000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
