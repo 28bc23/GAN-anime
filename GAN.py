@@ -144,7 +144,7 @@ class GAN:
         self.epochs = epochs
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.device = "cpu"
+        #self.device = "cpu"
 
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
@@ -214,7 +214,7 @@ class GAN:
                 out_real = self.discriminator(real_in)
                 out_fake = self.discriminator(gen_in)
 
-                d_loss = (self.loss(out_fake, fake_target) + self.loss(out_real, real_target)) / 2
+                d_loss = -torch.mean(out_real) + torch.mean(out_fake)
                 d_loss.backward()
                 self.optim_d.step()
 
@@ -231,7 +231,7 @@ class GAN:
             self.optim_g.zero_grad()
             noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
             fake_images = self.generator(noise)
-            g_loss = self.loss(self.discriminator(fake_images), real_target)
+            g_loss = -torch.mean(self.discriminator(fake_images))
             g_loss.backward()
             self.optim_g.step()
 
@@ -243,7 +243,7 @@ class GAN:
             if epoch % 10 == 0:
                 self.save()
 
-            if epoch % 20 == 0:
+            if epoch % 5 == 0:
                 self.save_img(fake_images[0], epoch)
         self.graph()
     def graph(self):
@@ -265,9 +265,9 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=64, epochs=100)
+gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=13, epochs=100)
 print(gan.device)
-gan.load()
+#gan.load()
 gan.train()
 img = gan.generate()
 img = (img + 1) / 2
