@@ -21,7 +21,7 @@ class Generator(nn.Module):
         self.block = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(512, 512, 3, padding=1),
-            nn.BatchNorm2d(1024),
+            nn.BatchNorm2d(512),
             nn.ReLU()
         )
         self.block1 = nn.Sequential(
@@ -93,35 +93,35 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
             nn.utils.spectral_norm(nn.Conv2d(3, 8, 3, 2,padding=1)), #1024 -> 512; 512 -> 256
-            nn.InstanceNorm2d(8, affine=True),
+            #nn.InstanceNorm2d(8, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(8, 16, 3, 2,padding=1)), #512 -> 256; 256 -> 128
-            nn.InstanceNorm2d(16, affine=True),
+            #nn.InstanceNorm2d(16, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(16, 32, 3, 2, padding=1)), #256 -> 128; 128 -> 64
-            nn.InstanceNorm2d(32, affine=True),
+            #nn.InstanceNorm2d(32, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(32, 64, 3, 2,padding=1)), #128 -> 64; 64 -> 32
-            nn.InstanceNorm2d(64, affine=True),
+            #nn.InstanceNorm2d(64, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(64, 128, 3, 2, padding=1)), #64 -> 32; 32 -> 16
-            nn.InstanceNorm2d(128, affine=True),
+            #nn.InstanceNorm2d(128, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(128, 256, 3, 2, padding=1)), #32 -> 16; 16 -> 8
-            nn.InstanceNorm2d(256, affine=True),
+            #nn.InstanceNorm2d(256, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(256, 512, 3, 2, padding=1)), #16 -> 8; 8 -> 4
-            nn.InstanceNorm2d(512, affine=True),
+            #nn.InstanceNorm2d(512, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(512, 1024, 3, 2, padding=1)), #8 -> 4; 4 -> 2
-            nn.InstanceNorm2d(1024, affine=True),
+            #nn.InstanceNorm2d(1024, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(1024, 1024, 3, 1, padding=1)),  # 4 -> 4; 2 -> 2
@@ -151,8 +151,8 @@ class GAN:
 
         self.loss = nn.BCEWithLogitsLoss()
 
-        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.5, 0.999))
-        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.5, 0.999))
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.999))
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.999))
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -176,7 +176,7 @@ class GAN:
     def get_batch(self):
         idx = random.randint(0, 9)
 
-        nums = random.sample(range(1000), 32)
+        nums = random.sample(range(1000), self.batch_size)
         batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
 
         batch = []
@@ -224,8 +224,8 @@ class GAN:
                 else:
                     self.d_epoch = 1
 
-                self.fake_val.append(out_fake.detach().cpu().item())
-                self.real_val.append(out_real.detach().cpu().item())
+                self.fake_val.append(out_fake.detach().cpu().mean().item())
+                self.real_val.append(out_real.detach().cpu().mean().item())
 
             # ---- Generator optim ----
             self.optim_g.zero_grad()
@@ -265,7 +265,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=64, epochs=1000)
+gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=64, epochs=100)
 print(gan.device)
 gan.load()
 gan.train()
