@@ -156,9 +156,11 @@ class GAN:
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
         torch.save(self.discriminator.state_dict(), 'discriminator.pth')
+        print("---- saved ----")
     def load(self):
         self.generator.load_state_dict(torch.load('generator.pth'))
         self.discriminator.load_state_dict(torch.load('discriminator.pth'))
+        print("---- loaded ----")
     def get_batch(self):
         idx = random.randint(0, 9)
 
@@ -243,11 +245,20 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=8, epochs=100)
+gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=8, epochs=10000)
 print(gan.device)
-#gan.load()
-gan.train()
-img = gan.generate()
-img = (img + 1) / 2
-plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
-plt.show()
+
+load = input("Wanna load model?[Y/n]: ")
+if load.lower() != "n":
+    gan.load()
+
+train = input("Wanna train model?[Y/n]: ")
+if train.lower() != "n":
+    gan.train()
+
+gen = input("Wanna generate sample?[Y/n]: ")
+if gen.lower() != "n":
+    img = gan.generate()
+    img = (img + 1) / 2
+    plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
+    plt.show()
