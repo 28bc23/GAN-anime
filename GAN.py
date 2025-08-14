@@ -8,6 +8,11 @@ import random
 from PIL import Image
 import torch.nn.functional as F
 
+manualSeed = 999
+random.seed(manualSeed)
+torch.manual_seed(manualSeed)
+torch.use_deterministic_algorithms(True)
+
 class Generator(nn.Module):
     def __init__(self, latent_dim):
         super(Generator, self).__init__()
