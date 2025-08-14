@@ -65,14 +65,14 @@ class Generator(nn.Module):
             nn.BatchNorm2d(8),
             nn.ReLU()
         )
-        self.block8 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+
+        self.final = nn.Sequential(
             nn.Conv2d(8, 3, 3, padding=1),
-            nn.BatchNorm2d(3),
-            nn.ReLU()
+            nn.Tanh()
         )
     def forward(self, input):
         x = self.fc(input)
+
         x = self.block(x)
         x = self.block1(x)
         x = self.block2(x)
@@ -83,9 +83,8 @@ class Generator(nn.Module):
         #TODO: Self attention
         x = self.block6(x)
         x = self.block7(x)
-        x = self.block8(x)
 
-        img = torch.tanh(x)
+        img = self.final(x)
         return img
 
 class Discriminator(nn.Module):
@@ -233,7 +232,7 @@ class GAN:
 
 gan = GAN(lr=2e-4, latent_dim=100, batch_size=32, epochs=300)
 print(gan.device)
-gan.load()
+#gan.load()
 gan.train()
 img = gan.generate()
 img = (img + 1) / 2
