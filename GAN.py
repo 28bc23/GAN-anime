@@ -93,35 +93,27 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
             nn.utils.spectral_norm(nn.Conv2d(3, 8, 3, 2,padding=1)), #1024 -> 512; 512 -> 256
-            #nn.InstanceNorm2d(8, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(8, 16, 3, 2,padding=1)), #512 -> 256; 256 -> 128
-            #nn.InstanceNorm2d(16, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(16, 32, 3, 2, padding=1)), #256 -> 128; 128 -> 64
-            #nn.InstanceNorm2d(32, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(32, 64, 3, 2,padding=1)), #128 -> 64; 64 -> 32
-            #nn.InstanceNorm2d(64, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(64, 128, 3, 2, padding=1)), #64 -> 32; 32 -> 16
-            #nn.InstanceNorm2d(128, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(128, 256, 3, 2, padding=1)), #32 -> 16; 16 -> 8
-            #nn.InstanceNorm2d(256, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(256, 512, 3, 2, padding=1)), #16 -> 8; 8 -> 4
-            #nn.InstanceNorm2d(512, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(512, 1024, 3, 2, padding=1)), #8 -> 4; 4 -> 2
-            #nn.InstanceNorm2d(1024, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.utils.spectral_norm(nn.Conv2d(1024, 1024, 3, 1, padding=1)),  # 4 -> 4; 2 -> 2
@@ -129,7 +121,6 @@ class Discriminator(nn.Module):
 
             nn.Flatten(),
             nn.Linear(1024 * 4 * 2, 1),
-            #nn.Sigmoid()
         )
     def forward(self, input):
         val = self.main(input)
@@ -144,12 +135,9 @@ class GAN:
         self.epochs = epochs
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        #self.device = "cpu"
 
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
-
-        self.loss = nn.BCEWithLogitsLoss()
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.999))
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.999))
@@ -164,8 +152,6 @@ class GAN:
 
         self.real_val = []
         self.fake_val = []
-
-        self.d_epoch = 1
 
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
@@ -189,43 +175,26 @@ class GAN:
     def train(self):
         for epoch in range(self.epochs):
             batch = self.get_batch()
-
-            real_label_val = 0.9
-            fake_label_val = 0.0
-
-            real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
-            fake_target = (torch.zeros(batch.size(0), 1)).to(self.device)
-
-
             # ---- Discriminator optim ----
-            if epoch % self.d_epoch == 0:
-                if random.random() < 0.05:
-                    real_target, fake_target = fake_target, real_target
 
-                self.optim_d.zero_grad()
+            self.optim_d.zero_grad()
 
-                noise_scale = 0.01
-                real_in = batch + noise_scale * torch.randn_like(batch)
+            noise_scale = 0.01
+            real_in = batch + noise_scale * torch.randn_like(batch)
 
-                noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-                gen_img = self.generator(noise).detach()
-                gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
+            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
+            gen_img = self.generator(noise).detach()
+            gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
 
-                out_real = self.discriminator(real_in)
-                out_fake = self.discriminator(gen_in)
+            out_real = self.discriminator(real_in)
+            out_fake = self.discriminator(gen_in)
 
-                d_loss = -torch.mean(out_real) + torch.mean(out_fake)
-                d_loss.backward()
-                self.optim_d.step()
+            d_loss = -torch.mean(out_real) + torch.mean(out_fake)
+            d_loss.backward()
+            self.optim_d.step()
 
-                real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
-                if d_loss.item() < 0.5:
-                    self.d_epoch = 6
-                else:
-                    self.d_epoch = 1
-
-                self.fake_val.append(out_fake.detach().cpu().mean().item())
-                self.real_val.append(out_real.detach().cpu().mean().item())
+            self.fake_val.append(out_fake.detach().cpu().mean().item())
+            self.real_val.append(out_real.detach().cpu().mean().item())
 
             # ---- Generator optim ----
             self.optim_g.zero_grad()
@@ -267,7 +236,7 @@ class GAN:
 
 gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=13, epochs=100)
 print(gan.device)
-#gan.load()
+gan.load()
 gan.train()
 img = gan.generate()
 img = (img + 1) / 2
