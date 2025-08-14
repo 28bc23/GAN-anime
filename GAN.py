@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,55 +13,55 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         self.fc = nn.Sequential(
-            nn.Linear(latent_dim, 1024 * 4 * 2),
+            nn.Linear(latent_dim, 512 * 4 * 2),
             nn.ReLU(),
-            nn.Unflatten(1,(1024, 4, 2)),
+            nn.Unflatten(1,(512, 4, 2)),
         )
 
         self.block = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(1024, 1024, 3, padding=1),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Conv2d(512, 512, 3, padding=1),
             nn.BatchNorm2d(1024),
             nn.ReLU()
         )
         self.block1 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(1024, 512, 3, padding=1),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Conv2d(512, 512, 3, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU()
         )
         self.block2 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(512, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU()
         )
         self.block3 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(256, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU()
         )
         self.block4 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(128, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU()
         )
         self.block5 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(64, 32, 3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU()
         )
         self.block6 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(32, 16, 3, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU()
         )
         self.block7 = nn.Sequential(
-            nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(16, 8, 3, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU()
@@ -91,35 +92,35 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            nn.Conv2d(3, 8, 3, 2,padding=1), #1024 -> 512; 512 -> 256
+            nn.utils.spectral_norm(nn.Conv2d(3, 8, 3, 2,padding=1)), #1024 -> 512; 512 -> 256
             nn.InstanceNorm2d(8, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(8, 16, 3, 2,padding=1), #512 -> 256; 256 -> 128
+            nn.utils.spectral_norm(nn.Conv2d(8, 16, 3, 2,padding=1)), #512 -> 256; 256 -> 128
             nn.InstanceNorm2d(16, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(16, 32, 3, 2, padding=1), #256 -> 128; 128 -> 64
+            nn.utils.spectral_norm(nn.Conv2d(16, 32, 3, 2, padding=1)), #256 -> 128; 128 -> 64
             nn.InstanceNorm2d(32, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(32, 64, 3, 2,padding=1), #128 -> 64; 64 -> 32
+            nn.utils.spectral_norm(nn.Conv2d(32, 64, 3, 2,padding=1)), #128 -> 64; 64 -> 32
             nn.InstanceNorm2d(64, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(64, 128, 3, 2, padding=1), #64 -> 32; 32 -> 16
+            nn.utils.spectral_norm(nn.Conv2d(64, 128, 3, 2, padding=1)), #64 -> 32; 32 -> 16
             nn.InstanceNorm2d(128, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(128, 256, 3, 2, padding=1), #32 -> 16; 16 -> 8
+            nn.utils.spectral_norm(nn.Conv2d(128, 256, 3, 2, padding=1)), #32 -> 16; 16 -> 8
             nn.InstanceNorm2d(256, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(256, 512, 3, 2, padding=1), #16 -> 8; 8 -> 4
+            nn.utils.spectral_norm(nn.Conv2d(256, 512, 3, 2, padding=1)), #16 -> 8; 8 -> 4
             nn.InstanceNorm2d(512, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(512, 1024, 3, 2, padding=1), #8 -> 4; 4 -> 2
+            nn.utils.spectral_norm(nn.Conv2d(512, 1024, 3, 2, padding=1)), #8 -> 4; 4 -> 2
             nn.InstanceNorm2d(1024, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
@@ -160,6 +161,9 @@ class GAN:
 
         self.total_g_loss = []
         self.total_d_loss = []
+
+        self.real_val = []
+        self.fake_val = []
 
         self.d_epoch = 1
 
@@ -216,9 +220,12 @@ class GAN:
 
                 real_target = (torch.ones(batch.size(0), 1) * real_label_val).to(self.device)
                 if d_loss.item() < 0.5:
-                    self.d_epoch = 4
+                    self.d_epoch = 6
                 else:
                     self.d_epoch = 1
+
+                self.fake_val.append(out_fake.detach().cpu().item())
+                self.real_val.append(out_real.detach().cpu().item())
 
             # ---- Generator optim ----
             self.optim_g.zero_grad()
@@ -235,10 +242,15 @@ class GAN:
 
             if epoch % 10 == 0:
                 self.save()
+
+            if epoch % 20 == 0:
+                self.save_img(fake_images[0], epoch)
         self.graph()
     def graph(self):
         plt.plot(self.total_g_loss, label="G_Loss")
         plt.plot(self.total_d_loss, label="D_Loss")
+        plt.plot(self.real_val, label="Real_Label")
+        plt.plot(self.fake_val, label="Fake_Label")
         plt.legend()
         plt.show()
     def generate(self):
@@ -246,10 +258,16 @@ class GAN:
             noise = torch.randn(1, self.latent_dim, device=self.device)
             img = self.generator(noise)
         return img
+    def save_img(self, img, e):
+        img = img.detach()
+        img = (img + 1) / 2
+        img = img.permute(1, 2, 0).cpu().numpy()
+        img = (img * 255).astype(np.uint8)
+        Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=16, epochs=1000)
+gan = GAN(lr_g=2e-4,lr_d=2e-4, latent_dim=100, batch_size=64, epochs=1000)
 print(gan.device)
-#gan.load()
+gan.load()
 gan.train()
 img = gan.generate()
 img = (img + 1) / 2
