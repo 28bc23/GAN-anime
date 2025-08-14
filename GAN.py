@@ -5,7 +5,7 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import random
 from PIL import Image
-from torch import functional as F
+import torch.nn.functional as F
 
 class Generator(nn.Module):
     def __init__(self, latent_dim):
@@ -153,6 +153,7 @@ class GAN:
         self.epochs = epochs
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = "cpu"
 
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
