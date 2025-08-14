@@ -189,7 +189,7 @@ class GAN:
             out_real = self.discriminator(real_in)
             out_fake = self.discriminator(gen_in)
 
-            d_loss = -torch.mean(out_real) + torch.mean(out_fake)
+            d_loss = torch.mean(F.relu(1.0 - out_real)) + torch.mean(F.relu(1.0 + out_fake))
             d_loss.backward()
             self.optim_d.step()
 
