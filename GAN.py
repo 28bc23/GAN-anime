@@ -144,6 +144,9 @@ class GAN:
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
 
+        self.weights_init(self.generator)
+        self.weights_init(self.discriminator)
+
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.99))
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.99))
 
@@ -157,6 +160,14 @@ class GAN:
 
         self.real_val = []
         self.fake_val = []
+
+    def weights_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            nn.init.normal_(m.weight.data, 0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            nn.init.normal_(m.weight.data, 1.0, 0.02)
+            nn.init.constant_(m.bias.data, 0)
 
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
