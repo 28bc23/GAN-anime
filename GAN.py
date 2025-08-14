@@ -11,7 +11,7 @@ import torch.nn.functional as F
 manualSeed = 999
 random.seed(manualSeed)
 torch.manual_seed(manualSeed)
-torch.use_deterministic_algorithms(True)
+#torch.use_deterministic_algorithms(True)
 
 class Generator(nn.Module):
     def __init__(self, latent_dim):
@@ -88,35 +88,39 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            nn.utils.spectral_norm(nn.Conv2d(3, 8, 3, 2,padding=1)), #1024 -> 512; 512 -> 256
+            nn.Conv2d(3, 8, 3, 2,padding=1), #1024 -> 512; 512 -> 256
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(8, 16, 3, 2,padding=1)), #512 -> 256; 256 -> 128
+            nn.Conv2d(8, 16, 3, 2,padding=1), #512 -> 256; 256 -> 128
+            nn.BatchNorm2d(16),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(16, 32, 3, 2, padding=1)), #256 -> 128; 128 -> 64
+            nn.Conv2d(16, 32, 3, 2, padding=1), #256 -> 128; 128 -> 64
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(32, 64, 3, 2,padding=1)), #128 -> 64; 64 -> 32
+            nn.Conv2d(32, 64, 3, 2,padding=1), #128 -> 64; 64 -> 32
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(64, 128, 3, 2, padding=1)), #64 -> 32; 32 -> 16
+            nn.Conv2d(64, 128, 3, 2, padding=1), #64 -> 32; 32 -> 16
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(128, 256, 3, 2, padding=1)), #32 -> 16; 16 -> 8
+            nn.Conv2d(128, 256, 3, 2, padding=1), #32 -> 16; 16 -> 8
+            nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(256, 512, 3, 2, padding=1)), #16 -> 8; 8 -> 4
+            nn.Conv2d(256, 512, 3, 2, padding=1), #16 -> 8; 8 -> 4
+            nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(512, 1024, 3, 2, padding=1)), #8 -> 4; 4 -> 2
+            nn.Conv2d(512, 1024, 3, 2, padding=1), #8 -> 4; 4 -> 2
+            nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.utils.spectral_norm(nn.Conv2d(1024, 1024, 3, 1, padding=1)),  # 4 -> 4; 2 -> 2
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Flatten(),
-            nn.Linear(1024 * 4 * 2, 1),
+            nn.Conv2d(1024, 1, kernel_size=(4,2), stride=1, padding=1),  # 4 -> 1; 2 -> 1
+            nn.Sigmoid()
         )
     def forward(self, input):
         val = self.main(input)
