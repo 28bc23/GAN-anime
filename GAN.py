@@ -119,7 +119,7 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(1024, 1, kernel_size=(4,2), stride=1, padding=1),  # 4 -> 1; 2 -> 1
+            nn.Conv2d(1024, 1, kernel_size=(4,2), stride=1, padding=0),  # 4 -> 1; 2 -> 1
             nn.Sigmoid()
         )
     def forward(self, input):
@@ -142,19 +142,22 @@ class GAN:
         self.weights_init(self.generator)
         self.weights_init(self.discriminator)
 
-        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.0, 0.99))
-        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.0, 0.99))
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.5, 0.999))
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.5, 0.999))
+        self.loss = nn.BCELoss()
+
+        self.real_label = 1.
+        self.fake_label = 0.
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
+        self.fixed_noise = torch.randn(1, self.latent_dim, device=self.device)
+
         self.total_g_loss = []
         self.total_d_loss = []
-
-        self.real_val = []
-        self.fake_val = []
 
     def weights_init(self, m):
         classname = m.__class__.__name__
@@ -190,43 +193,40 @@ class GAN:
             batch = self.get_batch()
             # ---- Discriminator optim ----
 
+            # -- real --
             self.optim_d.zero_grad()
-
-            noise_scale = 0.01
-            real_in = (batch + noise_scale * torch.randn_like(batch)).clone().detach().requires_grad_(True)
-
+            label = torch.full((batch.shape[0],), self.real_label,dtype=torch.float, device=self.device)
+            r_out = self.discriminator(batch).view(-1)
+            d_loss_r = self.loss(r_out, label)
+            d_loss_r.backward()
+            r_d = r_out.mean().item()
+            # -- fake --
             noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-            gen_img = self.generator(noise).detach()
-            gen_in = gen_img + noise_scale * torch.randn_like(gen_img)
-
-            out_real = self.discriminator(real_in)
-            out_fake = self.discriminator(gen_in)
-
-            d_loss = torch.mean(F.relu(1.0 - out_real)) + torch.mean(F.relu(1.0 + out_fake))
-            grad_real = torch.autograd.grad(outputs=out_real.sum(), inputs=real_in, create_graph=True)[0]
-            r1 = (grad_real.view(grad_real.size(0), -1).pow(2).sum(1)).mean()
-            d_loss = d_loss + 0.5 * 10 * r1
-
-            d_loss.backward()
+            f = self.generator(noise)
+            label.fill_(self.fake_label)
+            f_out = self.discriminator(f.detach()).view(-1)
+            d_loss_f = self.loss(f_out, label)
+            d_loss_f.backward()
+            f_d = f_out.mean().item()
+            d_loss = d_loss_r + d_loss_f
             self.optim_d.step()
-
-            self.fake_val.append(out_fake.detach().cpu().mean().item())
-            self.real_val.append(out_real.detach().cpu().mean().item())
 
             # ---- Generator optim ----
             self.optim_g.zero_grad()
-            noise = torch.randn(batch.size(0), self.latent_dim, device=self.device)
-            fake_images = self.generator(noise)
-            g_loss = -torch.mean(self.discriminator(fake_images))
+            label.fill_(self.real_label)
+            out = self.discriminator(f).view(-1)
+            g_loss = self.loss(out, label)
             g_loss.backward()
+            fg_d = out.mean().item()
             self.optim_g.step()
 
             # ---- Graph data ----
-            print(f"epoch: {epoch}, g_loss: {g_loss.item():.4f}, d_loss: {d_loss.item():.4f}"
-                  f", out_real mean/std: {out_real.detach().cpu().mean().item()}/"
-                  f"{out_real.detach().cpu().std().item()}"
-                  f", out_fake mean/std: {out_fake.detach().cpu().mean().item()}/"
-                  f"{out_fake.detach().cpu().std().item()}")
+            print(f"epoch: {epoch}/{self.epochs}, "
+                  f"g_loss: {g_loss.item():.4f}, "
+                  f"d_loss: {d_loss.item():.4f}, "
+                  f"d_real_detect: {r_d}, "
+                  f"d_fake_detect: {f_d}, "
+                  f"d_fake_detect_v2: {fg_d}")
 
             self.total_g_loss.append(g_loss.item())
             self.total_d_loss.append(d_loss.item())
@@ -234,14 +234,17 @@ class GAN:
             if epoch % 10 == 0:
                 self.save()
 
-            if epoch % 5 == 0:
-                self.save_img(fake_images[0], epoch)
+            if epoch % 20 == 0:
+                with torch.no_grad():
+                    fake_img = self.generator(self.fixed_noise).detach().cpu()
+                self.save_img(fake_img, epoch)
+
         self.graph()
     def graph(self):
         plt.plot(self.total_g_loss, label="G_Loss")
         plt.plot(self.total_d_loss, label="D_Loss")
-        plt.plot(self.real_val, label="Real_Label")
-        plt.plot(self.fake_val, label="Fake_Label")
+        plt.xlabel("iterations")
+        plt.ylabel("Loss")
         plt.legend()
         plt.show()
     def generate(self):
@@ -250,13 +253,13 @@ class GAN:
             img = self.generator(noise)
         return img
     def save_img(self, img, e):
-        img = img.detach()
+        img = img.detach().squeeze().cpu()
         img = (img + 1) / 2
         img = img.permute(1, 2, 0).cpu().numpy()
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=2e-4,lr_d=1e-4, latent_dim=100, batch_size=8, epochs=10000)
+gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=8, epochs=10000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
