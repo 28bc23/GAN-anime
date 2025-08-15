@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 import random
 from PIL import Image
 
+manualSeed = 24150
+random.seed(manualSeed)
+torch.manual_seed(manualSeed)
+
+
 class SelfAttention(nn.Module):
     def __init__(self):
         super(SelfAttention, self).__init__()
@@ -63,13 +68,15 @@ class Discriminator(nn.Module):
         return self.main(x)
 
 class WGAN():
-    def __init__(self, epochs = 1000, batch_size = 64, latent_dim = 100, use_cuda=True, g_steps = 1, d_steps = 3,lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
+    def __init__(self, epochs = 1000, batch_size = 64, latent_dim = 100, save_freq = 10, test_gen_freq = 10, use_cuda=True, g_steps = 1, d_steps = 3,lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
         super(WGAN, self).__init__()
 
         self.batch_size = batch_size
         self.latent_dim = latent_dim
         self.c_lambda = c_lambda
         self.epochs = epochs
+        self.save_freq = save_freq
+        self.test_gen_freq = test_gen_freq
 
         if use_cuda:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -87,6 +94,8 @@ class WGAN():
 
         self.mse = nn.MSELoss()
 
+        self.fixed_noise = torch.randn(self.batch_size, self.latent_dim, 1, 1, device=self.device)
+
         self.transform = transforms.Compose([
             transforms.Resize(transform_size),
             transforms.RandomHorizontalFlip(transform_horizontal_flip_chance),
@@ -94,7 +103,16 @@ class WGAN():
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
+        self.d_loss_data = []
+        self.g_loss_data = []
 
+    def save(self):
+        torch.save(self.generator.state_dict(), './gWGAN.pth')
+        torch.save(self.discriminator.state_dict(), './dWGAN.pth')
+
+    def load(self):
+        self.generator.load_state_dict(torch.load('./gWGAN.pth'))
+        self.discriminator.load_state_dict(torch.load('./dWGAN.pth'))
 
     def get_batch(self):
         idx = random.randint(0, 9)
@@ -157,6 +175,7 @@ class WGAN():
             #############################
             ##   Discriminator optim   ##
             #############################
+            mean_d_loss = 0
             for _ in range(self.d_steps):
                 self.optim_d.zero_grad()
 
@@ -172,11 +191,13 @@ class WGAN():
 
                 d_loss.backward()
                 self.optim_d.step()
+                mean_d_loss += d_loss.item()
 
 
             #############################
             ##     Generator optim     ##
             #############################
+            mean_g_loss = 0
             for _ in range(self.g_steps):
                 self.optim_g.zero_grad()
 
@@ -188,3 +209,29 @@ class WGAN():
 
                 g_loss.backward()
                 self.optim_g.step()
+                mean_g_loss += g_loss.item()
+
+            ### Data collection ###
+            mean_g_loss = mean_g_loss / self.g_steps
+            mean_d_loss = mean_d_loss / self.d_steps
+            self.d_loss_data = mean_d_loss
+            self.g_loss_data = mean_g_loss
+
+            if e % self.save_freq == 0:
+                self.save()
+            if e % self.test_gen_freq == 0:
+                self.generator.eval()
+                with torch.no_grad():
+                    fake_img = self.generator(self.fixed_noise).detach().cpu()
+                self.save_img(fake_img, e)
+                self.generator.train()
+
+            print(f"epoch: {e}/{self.epochs}, "
+                  f"g_loss: {mean_g_loss:.4f}, "
+                  f"d_loss: {mean_d_loss:.4f}")
+        self.save()
+        self.generator.eval()
+        with torch.no_grad():
+            fake_img = self.generator(self.fixed_noise).detach().cpu()
+        self.save_img(fake_img, self.epochs)
+        self.generator.train()
