@@ -85,32 +85,32 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout2d(0.4),
 
-            nn.Conv2d(32, 32, 3, 2,padding=1), #128 -> 64; 64 -> 32
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Dropout2d(0.4),
-
-            nn.Conv2d(32, 64, 3, 2, padding=1), #64 -> 32; 32 -> 16
+            nn.Conv2d(32, 64, 3, 2,padding=1), #128 -> 64; 64 -> 32
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout2d(0.4),
 
-            nn.Conv2d(64, 128, 3, 2, padding=1), #32 -> 16; 16 -> 8
+            nn.Conv2d(64, 128, 3, 2, padding=1), #64 -> 32; 32 -> 16
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout2d(0.4),
 
-            nn.Conv2d(128, 256, 3, 2, padding=1), #16 -> 8; 8 -> 4
+            nn.Conv2d(128, 256, 3, 2, padding=1), #32 -> 16; 16 -> 8
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout2d(0.4),
 
-            nn.Conv2d(256, 512, 3, 2, padding=1), #8 -> 4; 4 -> 2
+            nn.Conv2d(256, 512, 3, 2, padding=1), #16 -> 8; 8 -> 4
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Dropout2d(0.4),
 
-            nn.Conv2d(512, 1, kernel_size=(4,2), stride=1, padding=0),  # 4 -> 1; 2 -> 1
+            nn.Conv2d(512, 1024, 3, 2, padding=1), #8 -> 4; 4 -> 2
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout2d(0.4),
+
+            nn.Conv2d(1024, 1, kernel_size=(4,2), stride=1, padding=0),  # 4 -> 1; 2 -> 1
             nn.Sigmoid()
         )
     def forward(self, input):
