@@ -235,3 +235,11 @@ class WGAN():
             fake_img = self.generator(self.fixed_noise).detach().cpu()
         self.save_img(fake_img, self.epochs)
         self.generator.train()
+
+### RUN ###
+wgan = WGAN()
+print(wgan.device)
+
+#wgan.load()
+wgan.train()
+wgan.generate()
