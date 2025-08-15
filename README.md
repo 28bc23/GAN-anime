@@ -1,17 +1,21 @@
 *I would appreciate feedback on how to improve this GAN, thx.*
 
-GAN trained for nearly generating anime girls.
-:)
+This is GAN trained for generating anime girls in resolution 128x64
 
 **Dataset I used**: https://huggingface.co/datasets/skytnt/fbanimehq/blob/main/data/fbanimehq-00.zip
 
 
-**Install - if you want it for some reason**
+**Install**
+For installation you need to clone this repo and install dependencies from requirements.txt, it's good choise to use venv like conda
+If you want to just generate images just extract pretrained pth files in the same dir lake is the main file GAN.py.
 
-if you want to use it for some reason, then you just nead to extract the trained files so it's in same dir like the GAN.py file and install stuff from requirements.txt, that's it.
+For training you need to download dataset above and extract its content to folder called data, so it's same like in the picture below.
+If you need to use different dataset(forexsample you don't want to generate anime girls), you need to prepair it, so it's the same way like the prefered dataset.
+meaning in data folder you will need to have folders called exsactly 000X and in these folders you need images in .png called 000XXX.png (X represents int value from 0 to 9).
+or rewrite my code, so it fits to your dataset
 
-To train it you need to download that dataset and extract it to folder data that is located in the same dir like is the GAN.py file like in pic below or just rewrite this thrash code so it's working with your settup
-and enjoy :DDDD
+**Tested resolutions**
+  - 128x64
+  - 1024x512 - *This resolution is too big so youu will be getting collored noise, you need to modity the code so it's working propertly on higher resolutions*
 
-
-<img width="397" height="490" alt="image" src="https://github.com/user-attachments/assets/06d8a40e-814f-4be7-94c5-fd32155398b8" />
+<img width="397" height="490" alt="Example of folder layout for generating images from a pre-trained model and training your own model" src="https://github.com/user-attachments/assets/06d8a40e-814f-4be7-94c5-fd32155398b8" />
