@@ -47,7 +47,7 @@ class Generator(nn.Module):
             ConvTransBlock(in_channel=256, out_channel=128, kernel_size=4, stride=2, padding=1, output_padding=1),
             ConvTransBlock(in_channel=128, out_channel=64, kernel_size=4, stride=2, padding=1, output_padding=1),
             ConvTransBlock(in_channel=64, out_channel=32, kernel_size=4, stride=2, padding=1, output_padding=1),
-            nn.ConvTranspose2d(64, 3, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False),
+            nn.ConvTranspose2d(32, 3, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False),
             nn.Tanh()
         )
     def forward(self, x):
