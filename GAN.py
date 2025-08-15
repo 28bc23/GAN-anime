@@ -157,7 +157,7 @@ class GAN:
                 # -- real --
                 self.optim_d.zero_grad()
                 label = torch.full((batch.shape[0],), self.real_label,dtype=torch.float, device=self.device)
-                batch += torch.randn_like(batch) * 0.05
+                #batch += torch.randn_like(batch) * 0.05
                 r_out = self.discriminator(batch).view(-1)
                 d_loss_r = self.loss(r_out, label)
                 d_loss_r.backward()
@@ -165,9 +165,9 @@ class GAN:
                 # -- fake --
                 noise = torch.randn(batch.size(0), self.latent_dim, 1, 1, device=self.device)
                 f = self.generator(noise)
-                fake_img = f.detach() + torch.randn_like(f) * 0.05
+                #fake_img = f.detach() + torch.randn_like(f) * 0.05
                 label.fill_(self.fake_label)
-                f_out = self.discriminator(fake_img).view(-1)
+                f_out = self.discriminator(f.detach()).view(-1)
                 d_loss_f = self.loss(f_out, label)
                 d_loss_f.backward()
                 f_d = f_out.mean().item()
@@ -227,7 +227,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=50, epochs=1000)
+gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=128, epochs=1000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
