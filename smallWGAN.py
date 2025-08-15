@@ -50,7 +50,7 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(64, 3, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False),
             nn.Tanh()
         )
-    def f(self, x):
+    def forward(self, x):
         return self.main(x)
 
 class Discriminator(nn.Module):
@@ -64,7 +64,7 @@ class Discriminator(nn.Module):
             ConvBlock(in_channel=256, out_channel=512, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 8x4; 4x2
             nn.Conv2d(512, 1, kernel_size=(4, 2), stride=1, padding=0),  # 4x2; 1x1
         )
-    def f(self, x):
+    def forward(self, x):
         return self.main(x)
 
 class WGAN():
