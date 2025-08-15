@@ -95,9 +95,6 @@ class GAN:
         self.generator = Generator(self.latent_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
 
-        self.weights_init(self.generator)
-        self.weights_init(self.discriminator)
-
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=(0.5, 0.999))
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=(0.5, 0.999))
         self.loss = nn.BCELoss()
@@ -118,6 +115,10 @@ class GAN:
 
         self.total_g_loss = []
         self.total_d_loss = []
+
+    def models_init(self):
+        self.weights_init(self.generator)
+        self.weights_init(self.discriminator)
 
     def weights_init(self, m):
         classname = m.__class__.__name__
@@ -227,12 +228,14 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=128, epochs=1000)
+gan = GAN(lr_g=0.00003,lr_d=0.00003, latent_dim=100, batch_size=128, epochs=1000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
 if load.lower() != "n":
     gan.load()
+else:
+    gan.models_init()
 
 train = input("Wanna train model?[Y/n]: ")
 if train.lower() != "n":
