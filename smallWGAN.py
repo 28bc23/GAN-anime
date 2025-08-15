@@ -63,12 +63,13 @@ class Discriminator(nn.Module):
         return self.main(x)
 
 class WGAN():
-    def __init__(self, batch_size = 64, latent_dim = 100, use_cuda=True, lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
+    def __init__(self, epochs = 1000, batch_size = 64, latent_dim = 100, use_cuda=True, g_steps = 1, d_steps = 3,lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
         super(WGAN, self).__init__()
 
         self.batch_size = batch_size
         self.latent_dim = latent_dim
         self.c_lambda = c_lambda
+        self.epochs = epochs
 
         if use_cuda:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -80,6 +81,9 @@ class WGAN():
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=g_betas)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=d_betas)
+
+        self.g_steps = g_steps
+        self.d_steps = d_steps
 
         self.mse = nn.MSELoss()
 
@@ -106,7 +110,8 @@ class WGAN():
         batch = torch.stack(batch).to(self.device)
         return batch
 
-    def get_gradient(self, discriminator, real, fake, epsilon):
+    def get_gradient(self, discriminator, real, fake):
+        epsilon = torch.rand(self.batch_size, 1, 1, 1, device=self.device, requires_grad=True)
         mixed_img = real * epsilon + fake * (1 - epsilon)
         vals = discriminator(mixed_img)
         ones = torch.ones_like(vals)
@@ -122,7 +127,7 @@ class WGAN():
         g_loss = -torch.mean(d_gen_val)
         return g_loss
     def d_loss(self, d_fake_val, d_real_val, gradient_penalty):
-        d_loss = -torch.mean(d_fake_val)
+        d_loss = torch.mean(d_fake_val) - torch.mean(d_real_val) + self.c_lambda * gradient_penalty
         return d_loss
     def generate(self, x_images = 1, save = False):
         self.generator.eval()
@@ -144,3 +149,42 @@ class WGAN():
             Image.fromarray(img).save(f"generatedImages/gen{e}_{i}.png")
         else:
             Image.fromarray(img).save(f"generatedImages/gen{e}.png")
+
+    def train(self):
+        for e in range(self.epochs):
+            batch = self.get_batch().to(self.device)
+
+            #############################
+            ##   Discriminator optim   ##
+            #############################
+            for _ in range(self.d_steps):
+                self.optim_d.zero_grad()
+
+                noise = torch.randn(self.batch_size, self.latent_dim, 1, 1, device=self.device)
+                fake = self.generator(noise).detach().to(self.device)
+
+                real_val = self.discriminator(batch).to(self.device)
+                fake_val = self.discriminator(fake).to(self.device)
+
+                gradient = self.get_gradient(discriminator=self.discriminator, real=batch, fake=fake)
+                gradient_penalty = self.get_gradient_penalty(gradient)
+                d_loss = self.d_loss(d_fake_val=fake_val, d_real_val=real_val, gradient_penalty=gradient_penalty)
+
+                d_loss.backward()
+                self.optim_d.step()
+
+
+            #############################
+            ##     Generator optim     ##
+            #############################
+            for _ in range(self.g_steps):
+                self.optim_g.zero_grad()
+
+                noise = torch.randn(self.batch_size, self.latent_dim, 1, 1, device=self.device)
+                fake_img = self.generator(noise)
+                fake_val = self.discriminator(fake_img).to(self.device)
+
+                g_loss = self.g_loss(fake_val)
+
+                g_loss.backward()
+                self.optim_g.step()
