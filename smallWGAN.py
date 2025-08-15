@@ -63,7 +63,7 @@ class Discriminator(nn.Module):
         return self.main(x)
 
 class WGAN():
-    def __init__(self, batch_size, latent_dim, use_cuda=True, lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10):
+    def __init__(self, batch_size = 64, latent_dim = 100, use_cuda=True, lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
         super(WGAN, self).__init__()
 
         self.batch_size = batch_size
@@ -75,15 +75,17 @@ class WGAN():
         else:
             self.device = torch.device('cpu')
 
-        self.generator = Generator(self.latent_dim)
-        self.discriminator = Discriminator()
+        self.generator = Generator(self.latent_dim).to(self.device)
+        self.discriminator = Discriminator().to(self.device)
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=g_betas)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=d_betas)
 
+        self.mse = nn.MSELoss()
+
         self.transform = transforms.Compose([
-            transforms.Resize((128, 64)),
-            transforms.RandomHorizontalFlip(.5),
+            transforms.Resize(transform_size),
+            transforms.RandomHorizontalFlip(transform_horizontal_flip_chance),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
@@ -104,9 +106,41 @@ class WGAN():
         batch = torch.stack(batch).to(self.device)
         return batch
 
+    def get_gradient(self, discriminator, real, fake, epsilon):
+        mixed_img = real * epsilon + fake * (1 - epsilon)
+        vals = discriminator(mixed_img)
+        ones = torch.ones_like(vals)
+
+        g = torch.autograd.grad(outputs=vals, inputs=mixed_img, grad_outputs=ones, create_graph=True, retain_graph=True)[0]
+        return g
+    def get_gradient_penalty(self, gradient):
+        g = gradient.view(len(gradient), -1)
+        norm = g.norm(2, dim=1)
+        return self.mse(norm, torch.ones_like(norm))
+
     def g_loss(self, d_gen_val):
         g_loss = -torch.mean(d_gen_val)
         return g_loss
     def d_loss(self, d_fake_val, d_real_val, gradient_penalty):
         d_loss = -torch.mean(d_fake_val)
         return d_loss
+    def generate(self, x_images = 1, save = False):
+        self.generator.eval()
+        for i in range(x_images):
+            noise = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
+            with torch.no_grad():
+                img = self.generator(noise)
+            if save:
+                self.save_img(img, i, rand=True)
+        self.generator.train()
+
+    def save_img(self, img, e, rand = False):
+        img = img.detach().squeeze().cpu()
+        img = (img + 1) / 2
+        img = img.permute(1, 2, 0).cpu().numpy()
+        img = (img * 255).astype(np.uint8)
+        if rand:
+            i = random.randint(1, 1000)
+            Image.fromarray(img).save(f"generatedImages/gen{e}_{i}.png")
+        else:
+            Image.fromarray(img).save(f"generatedImages/gen{e}.png")
