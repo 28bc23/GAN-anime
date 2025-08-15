@@ -94,7 +94,7 @@ class WGAN():
 
         self.mse = nn.MSELoss()
 
-        self.fixed_noise = torch.randn(self.batch_size, self.latent_dim, 1, 1, device=self.device)
+        self.fixed_noise = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
 
         self.transform = transforms.Compose([
             transforms.Resize(transform_size),
@@ -164,9 +164,9 @@ class WGAN():
         img = (img * 255).astype(np.uint8)
         if rand:
             i = random.randint(1, 1000)
-            Image.fromarray(img).save(f"generatedImages/gen{e}_{i}.png")
+            Image.fromarray(img).save(f"generatedImages/WGAN/gen{e}_{i}.png")
         else:
-            Image.fromarray(img).save(f"generatedImages/gen{e}.png")
+            Image.fromarray(img).save(f"generatedImages/WGAN/gen{e}.png")
 
     def train(self):
         for e in range(self.epochs):
