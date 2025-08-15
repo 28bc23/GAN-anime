@@ -27,4 +27,4 @@ or rewrite my code, so it fits to your dataset
 
 
 **Small GAN**
-- 980 epochs: 
+- 980 epochs: <img width="64" height="128" alt="gen980" src="https://github.com/user-attachments/assets/9fdd2ba9-2f61-448b-a9a9-bd1c3d27fc48" />
