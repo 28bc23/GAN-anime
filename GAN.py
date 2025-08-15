@@ -17,71 +17,54 @@ class Generator(nn.Module):
     def __init__(self, latent_dim):
         super(Generator, self).__init__()
 
-        self.fc = nn.Sequential(
-            nn.Linear(latent_dim, 512 * 4 * 2),
-            nn.ReLU(),
-            nn.Unflatten(1,(512, 4, 2)),
-        )
-
-        self.block = nn.Sequential(
-            nn.Upsample(scale_factor=4, mode='bilinear'),
-            nn.Conv2d(512, 512, 3, padding=1),
+        self.main = nn.Sequential(
+            # latent_dim x 1 x 1 -> 512 x 4 x 4
+            nn.ConvTranspose2d(latent_dim, 512, kernel_size=4, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(True)
-        )
-        self.block1 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(512, 256, 3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(True)
-        )
-        self.block2 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(256, 128, 3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(True)
-        )
-        self.block3 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(128, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True)
-        )
-        self.block4 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(64, 32, 3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(True)
-        )
-        self.block5 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(32, 16, 3, padding=1),
-            nn.BatchNorm2d(16),
-            nn.ReLU(True)
-        )
-        self.block6 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(16, 8, 3, padding=1),
-            nn.BatchNorm2d(8),
-            nn.ReLU(True)
-        )
+            nn.ReLU(True),
 
-        self.final = nn.Sequential(
-            nn.Conv2d(8, 3, 3, padding=1),
+            # 512 x 4 x 4 -> 256 x 8 x 8
+            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+
+            # 256 x 8 x 8 -> 128 x 16 x 16
+            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+
+            # 128 x 16 x 16 -> 64 x 32 x 32
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+
+            # 64 x 32 x 32 -> 32 x 64 x 64
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+
+            # 32 x 64 x 64 -> 16 x 128 x 128
+            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+
+            # 16 x 128 x 128 -> 8 x 256 x 256
+            nn.ConvTranspose2d(16, 8, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+
+            # 8 x 256 x 256 -> 4 x 512 x 512
+            nn.ConvTranspose2d(8, 4, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(4),
+            nn.ReLU(True),
+
+            # 4 x 512 x 512 -> 3 x 1024 x 512
+            nn.ConvTranspose2d(4, 3, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False),
             nn.Tanh()
         )
+
     def forward(self, input):
-        x = input
-
-        x = self.block(x)
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        x = self.block5(x)
-        x = self.block6(x)
-
-        img = self.final(x)
+        img = self.main(input)
         return img
 
 class Discriminator(nn.Module):
@@ -154,7 +137,7 @@ class GAN:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
-        self.fixed_noise = torch.randn(1, self.latent_dim, 4, 2, device=self.device)
+        self.fixed_noise = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
 
         self.total_g_loss = []
         self.total_d_loss = []
@@ -201,7 +184,7 @@ class GAN:
             d_loss_r.backward()
             r_d = r_out.mean().item()
             # -- fake --
-            noise = torch.randn(batch.size(0), self.latent_dim, 4, 2, device=self.device)
+            noise = torch.randn(batch.size(0), self.latent_dim, 1, 1, device=self.device)
             f = self.generator(noise)
             label.fill_(self.fake_label)
             f_out = self.discriminator(f.detach()).view(-1)
@@ -259,7 +242,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=512, batch_size=8, epochs=5000)
+gan = GAN(lr_g=0.0002,lr_d=0.0002, latent_dim=100, batch_size=8, epochs=5000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
