@@ -22,6 +22,17 @@ class ConvTransBlock(nn.Module):
     def forward(self, x):
         return self.block(x)
 
+class ConvBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, kernel_size, stride, padding, output_padding, leak):
+        super(ConvBlock, self).__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channel, out_channel, kernel_size, stride, padding, output_padding),
+            nn.BatchNorm2d(out_channel),
+            nn.LeakyReLU(leak, True)
+        )
+    def forward(self, x):
+        return self.block(x)
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
