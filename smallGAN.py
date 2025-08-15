@@ -109,7 +109,7 @@ class GAN:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
-        self.d_steps = 4
+        self.d_steps = 10
 
         self.fixed_noise = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
 
@@ -127,6 +127,7 @@ class GAN:
         elif classname.find('BatchNorm') != -1:
             nn.init.normal_(m.weight.data, 1.0, 0.02)
             nn.init.constant_(m.bias.data, 0)
+        print(f"init {classname}")
 
     def save(self):
         torch.save(self.generator.state_dict(), 'generator.pth')
@@ -203,10 +204,12 @@ class GAN:
             if epoch % 10 == 0:
                 self.save()
 
-            if epoch % 20 == 0:
+            if epoch % 10 == 0:
+                self.generator.eval()
                 with torch.no_grad():
                     fake_img = self.generator(self.fixed_noise).detach().cpu()
                 self.save_img(fake_img, epoch)
+                self.generator.train()
 
         self.graph()
     def graph(self):
@@ -217,9 +220,11 @@ class GAN:
         plt.legend()
         plt.show()
     def generate(self):
+        self.generator.eval()
         with torch.no_grad():
             noise = torch.randn(1, self.latent_dim, 1, 1,device=self.device)
             img = self.generator(noise)
+        self.generator.train()
         return img
     def save_img(self, img, e):
         img = img.detach().squeeze().cpu()
@@ -228,7 +233,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.00003,lr_d=0.00003, latent_dim=100, batch_size=128, epochs=1000)
+gan = GAN(lr_g=0.0001,lr_d=0.0001, latent_dim=100, batch_size=128, epochs=5000)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
@@ -243,7 +248,8 @@ if train.lower() != "n":
 
 gen = input("Wanna generate sample?[Y/n]: ")
 if gen.lower() != "n":
-    img = gan.generate()
-    img = (img + 1) / 2
-    plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
-    plt.show()
+    for _ in range(2):
+        img = gan.generate()
+        img = (img + 1) / 2
+        plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
+        plt.show()
