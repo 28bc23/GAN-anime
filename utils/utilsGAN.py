@@ -21,10 +21,13 @@ class ConvTransBlock(nn.Module):
         return self.block(x)
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size, stride, padding, leak):
+    def __init__(self, in_channel, out_channel, kernel_size, stride, padding, leak, use_spectral_norm=True):
         super(ConvBlock, self).__init__()
+        conv = nn.Conv2d(in_channel, out_channel, kernel_size, stride, padding)
+        if use_spectral_norm:
+            conv = nn.utils.spectral_norm(conv)
         self.block = nn.Sequential(
-            nn.Conv2d(in_channel, out_channel, kernel_size, stride, padding),
+            conv,
             nn.BatchNorm2d(out_channel),
             nn.LeakyReLU(leak, True)
         )
@@ -57,9 +60,14 @@ def gen_progress(generator, fixed_noise, epoch):
 def graph(g_loss, d_loss, gp = None):
     plt.plot(g_loss, label="G_Loss")
     plt.plot(d_loss, label="D_Loss")
-    plt.plot(gp, label="gradient penalty")
     plt.xlabel("iterations")
     plt.ylabel("Loss")
+    plt.legend()
+    plt.show()
+
+    plt.plot(gp, label="gradient penalty")
+    plt.xlabel("epoch")
+    plt.ylabel("GP")
     plt.legend()
     plt.show()
 
