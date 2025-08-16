@@ -1,42 +1,19 @@
-import numpy as np
+import random
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import transforms
-import matplotlib.pyplot as plt
-import random
 from PIL import Image
+from torchvision import transforms
+
+from utils.utilsGAN import ConvTransBlock, ConvBlock, gen_progress, save_img, graph, get_batch
 
 manualSeed = 24150
 random.seed(manualSeed)
 torch.manual_seed(manualSeed)
 
 
-class SelfAttention(nn.Module):
-    def __init__(self):
-        super(SelfAttention, self).__init__()
 
-class ConvTransBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size, stride, padding, output_padding):
-        super(ConvTransBlock, self).__init__()
-        self.block = nn.Sequential(
-            nn.ConvTranspose2d(in_channel, out_channel, kernel_size, stride, padding, output_padding),
-            nn.BatchNorm2d(out_channel),
-            nn.ReLU(True)
-        )
-    def forward(self, x):
-        return self.block(x)
-
-class ConvBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size, stride, padding, output_padding, leak):
-        super(ConvBlock, self).__init__()
-        self.block = nn.Sequential(
-            nn.Conv2d(in_channel, out_channel, kernel_size, stride, padding, output_padding),
-            nn.BatchNorm2d(out_channel),
-            nn.LeakyReLU(leak, True)
-        )
-    def forward(self, x):
-        return self.block(x)
 
 class Generator(nn.Module):
     def __init__(self, latent_dim):
@@ -57,17 +34,17 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            ConvBlock(in_channel=3, out_channel=32, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 128x64; 64x32
-            ConvBlock(in_channel=32, out_channel=64, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 64x32; 32x16
-            ConvBlock(in_channel=64, out_channel=128, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 32x16; 16x8
-            ConvBlock(in_channel=128, out_channel=256, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 16x8; 8x4
-            ConvBlock(in_channel=256, out_channel=512, kernel_size=4, stride=2, padding=1, output_padding=1, leak=0.2), # 8x4; 4x2
+            ConvBlock(in_channel=3, out_channel=32, kernel_size=4, stride=2, padding=1, leak=0.2), # 128x64; 64x32
+            ConvBlock(in_channel=32, out_channel=64, kernel_size=4, stride=2, padding=1, leak=0.2), # 64x32; 32x16
+            ConvBlock(in_channel=64, out_channel=128, kernel_size=4, stride=2, padding=1, leak=0.2), # 32x16; 16x8
+            ConvBlock(in_channel=128, out_channel=256, kernel_size=4, stride=2, padding=1, leak=0.2), # 16x8; 8x4
+            ConvBlock(in_channel=256, out_channel=512, kernel_size=4, stride=2, padding=1, leak=0.2), # 8x4; 4x2
             nn.Conv2d(512, 1, kernel_size=(4, 2), stride=1, padding=0),  # 4x2; 1x1
         )
     def forward(self, x):
         return self.main(x)
 
-class WGAN():
+class WGAN:
     def __init__(self, epochs = 1000, batch_size = 64, latent_dim = 100, save_freq = 10, test_gen_freq = 10, use_cuda=True, g_steps = 1, d_steps = 3,lr_g = 2e-4, lr_d = 2e-4,g_betas = (0.5, 0.999), d_betas = (0.5, 0.999), c_lambda = 10, transform_size = (128, 64), transform_horizontal_flip_chance = 0.5):
         super(WGAN, self).__init__()
 
@@ -114,20 +91,6 @@ class WGAN():
         self.generator.load_state_dict(torch.load('./gWGAN.pth'))
         self.discriminator.load_state_dict(torch.load('./dWGAN.pth'))
 
-    def get_batch(self):
-        idx = random.randint(0, 9)
-
-        nums = random.sample(range(1000), self.batch_size)
-        batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
-
-        batch = []
-        for f in batch_files:
-            img = Image.open(f).convert('RGB')
-            tensor = self.transform(img)
-            batch.append(tensor)
-        batch = torch.stack(batch).to(self.device)
-        return batch
-
     def get_gradient(self, discriminator, real, fake):
         epsilon = torch.rand(self.batch_size, 1, 1, 1, device=self.device, requires_grad=True)
         mixed_img = real * epsilon + fake * (1 - epsilon)
@@ -154,23 +117,12 @@ class WGAN():
             with torch.no_grad():
                 img = self.generator(noise)
             if save:
-                self.save_img(img, i, rand=True)
+                save_img(img, i, rand=True)
         self.generator.train()
-
-    def save_img(self, img, e, rand = False):
-        img = img.detach().squeeze().cpu()
-        img = (img + 1) / 2
-        img = img.permute(1, 2, 0).cpu().numpy()
-        img = (img * 255).astype(np.uint8)
-        if rand:
-            i = random.randint(1, 1000)
-            Image.fromarray(img).save(f"generatedImages/WGAN/gen{e}_{i}.png")
-        else:
-            Image.fromarray(img).save(f"generatedImages/WGAN/gen{e}.png")
 
     def train(self):
         for e in range(self.epochs):
-            batch = self.get_batch().to(self.device)
+            batch = get_batch(batch_size=self.batch_size, transform=self.transform, device=self.device).to(self.device)
 
             #############################
             ##   Discriminator optim   ##
@@ -214,27 +166,21 @@ class WGAN():
             ### Data collection ###
             mean_g_loss = mean_g_loss / self.g_steps
             mean_d_loss = mean_d_loss / self.d_steps
-            self.d_loss_data = mean_d_loss
-            self.g_loss_data = mean_g_loss
+            self.d_loss_data.append(mean_d_loss)
+            self.g_loss_data.append(mean_g_loss)
 
             if e % self.save_freq == 0:
                 self.save()
             if e % self.test_gen_freq == 0:
-                self.generator.eval()
-                with torch.no_grad():
-                    fake_img = self.generator(self.fixed_noise).detach().cpu()
-                self.save_img(fake_img, e)
-                self.generator.train()
+                gen_progress(generator=self.generator, fixed_noise=self.fixed_noise, epoch=e)
 
             print(f"epoch: {e}/{self.epochs}, "
                   f"g_loss: {mean_g_loss:.4f}, "
                   f"d_loss: {mean_d_loss:.4f}")
         self.save()
-        self.generator.eval()
-        with torch.no_grad():
-            fake_img = self.generator(self.fixed_noise).detach().cpu()
-        self.save_img(fake_img, self.epochs)
-        self.generator.train()
+        gen_progress(generator=self.generator, fixed_noise=self.fixed_noise, epoch=self.epochs)
+        graph(g_loss=self.g_loss_data, d_loss=self.d_loss_data)
+
 
 ### RUN ###
 wgan = WGAN()
