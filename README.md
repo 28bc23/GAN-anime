@@ -1,6 +1,4 @@
-*I would appreciate feedback on how to improve this GAN, thx.*
-
-This is GAN trained for generating anime girls in resolution 128x64
+This repo contains multiple models of GAN, trained to generate full body anime girls, or you can train it on different dataset
 
 **Dataset I used**: https://huggingface.co/datasets/skytnt/fbanimehq/blob/main/data/fbanimehq-00.zip
 
@@ -38,3 +36,6 @@ or rewrite my code, so it fits to your dataset
 <img width="64" height="128" alt="gen6" src="https://github.com/user-attachments/assets/53d2aea5-e8a1-48fc-82f6-7596a0af8ae5" />
 <img width="64" height="128" alt="gen5" src="https://github.com/user-attachments/assets/a62aadfb-1961-4633-971b-0479ea2293a1" />
 <img width="64" height="128" alt="gen17" src="https://github.com/user-attachments/assets/ece8968e-53bf-4221-ba0a-06e691ba7cde" />
+
+
+*I would appreciate feedback on how to improve my GANs, thx.*
