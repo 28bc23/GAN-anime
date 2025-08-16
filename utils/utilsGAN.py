@@ -54,9 +54,10 @@ def gen_progress(generator, fixed_noise, epoch):
     save_img(fake_img, epoch)
     generator.train()
 
-def graph(g_loss, d_loss):
+def graph(g_loss, d_loss, gp = None):
     plt.plot(g_loss, label="G_Loss")
     plt.plot(d_loss, label="D_Loss")
+    plt.plot(gp, label="gradient penalty")
     plt.xlabel("iterations")
     plt.ylabel("Loss")
     plt.legend()
@@ -75,3 +76,12 @@ def get_batch(batch_size, transform, device):
         batch.append(tensor)
     batch = torch.stack(batch).to(device)
     return batch
+
+def weights_init(m):
+    if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+        if m.bias is not None:
+            nn.init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
