@@ -2,7 +2,7 @@ data/
 generatedImages/
 test.py
 .idea/
-./smallWGAN.py
+smallWGAN.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
