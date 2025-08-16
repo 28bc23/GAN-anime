@@ -63,10 +63,10 @@ def graph(g_loss, d_loss):
     plt.show()
 
 def get_batch(batch_size, transform, device):
-    idx = random.randint(0, 9)
+    idx = random.randint(0, 39)
 
     nums = random.sample(range(1000), batch_size)
-    batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
+    batch_files = [f"./data/00{idx:02d}/000{n:03d}.png" for n in nums]
 
     batch = []
     for f in batch_files:

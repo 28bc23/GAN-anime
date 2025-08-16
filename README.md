@@ -1,6 +1,6 @@
 This repo contains multiple models of GAN, trained to generate full body anime girls, or you can train it on different dataset
 
-**Dataset I used**: https://huggingface.co/datasets/skytnt/fbanimehq/blob/main/data/fbanimehq-00.zip
+**Dataset I used**: https://huggingface.co/datasets/skytnt/fbanimehq
 
 
 **Install**
@@ -10,7 +10,7 @@ If you want to just generate images just cpopy pretrained pth files in the same 
 
 For training you need to download dataset above and extract its content to folder called data, so it's same like in the picture below.
 If you need to use different dataset(forexsample you don't want to generate anime girls), you need to prepair it, so it's the same way like the prefered dataset.
-meaning in data folder you will need to have folders called exsactly 000X and in these folders you need images in .png called 000XXX.png (X represents int value from 0 to 9).
+meaning in data folder you will need to have folders called exsactly 00XX and in these folders you need images in .png called 000XXX.png (X represents int value from 0 to 9).
 or rewrite my code, so it fits to your dataset
 
 **Models**

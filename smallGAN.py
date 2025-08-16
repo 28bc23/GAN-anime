@@ -138,10 +138,10 @@ class GAN:
         self.discriminator.load_state_dict(torch.load('discriminator.pth'))
         print("---- loaded ----")
     def get_batch(self):
-        idx = random.randint(0, 9)
+        idx = random.randint(0, 39)
 
         nums = random.sample(range(1000), self.batch_size)
-        batch_files = [f"./data/000{idx}/000{n:03d}.png" for n in nums]
+        batch_files = [f"./data/00{idx:02d}/000{n:03d}.png" for n in nums]
 
         batch = []
         for f in batch_files:
@@ -248,8 +248,9 @@ if train.lower() != "n":
 
 gen = input("Wanna generate sample?[Y/n]: ")
 if gen.lower() != "n":
-    for _ in range(2):
+    for i in range(20):
         img = gan.generate()
-        img = (img + 1) / 2
-        plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
-        plt.show()
+        gan.save_img(img, i)
+        #img = (img + 1) / 2
+        #plt.imshow(img.squeeze().detach().cpu().numpy().transpose(1, 2, 0))
+        #plt.show()

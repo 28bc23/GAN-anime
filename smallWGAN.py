@@ -86,10 +86,12 @@ class WGAN:
     def save(self):
         torch.save(self.generator.state_dict(), './gWGAN.pth')
         torch.save(self.discriminator.state_dict(), './dWGAN.pth')
+        print("--- saved ---")
 
     def load(self):
         self.generator.load_state_dict(torch.load('./gWGAN.pth'))
         self.discriminator.load_state_dict(torch.load('./dWGAN.pth'))
+        print("--- loaded ---")
 
     def get_gradient(self, discriminator, real, fake):
         epsilon = torch.rand(self.batch_size, 1, 1, 1, device=self.device, requires_grad=True)
@@ -183,9 +185,9 @@ class WGAN:
 
 
 ### RUN ###
-wgan = WGAN()
+wgan = WGAN(epochs=10000, batch_size=128)
 print(wgan.device)
 
-#wgan.load()
+wgan.load()
 wgan.train()
 wgan.generate()
