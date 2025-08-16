@@ -1,0 +1,1 @@
+#TODO: generator, discriminator, train loop, chaining blocks, upscaling
