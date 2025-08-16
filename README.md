@@ -15,8 +15,8 @@ or rewrite my code, so it fits to your dataset
 
 **Models**
 - *smallGAN* - resolution 128x64
-- *smallWGAN* - 128x64
-- *PGGAN* - TODO, resolution 1024x512
+- *smallWGAN* - 128x64 **REMOVED**
+- *PROGAN* - TODO, resolution 1024x512
 
 <img width="397" height="490" alt="Example of folder layout for generating images from a pre-trained model and training your own model" src="https://github.com/user-attachments/assets/06d8a40e-814f-4be7-94c5-fd32155398b8" />
 
