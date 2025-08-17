@@ -1,5 +1,5 @@
 numpy==1.26.3
-torch==2.8.0+cu129
-torchvision==0.23.0+cu129
+torch==2.8.0+cu129 --index-url https://download.pytorch.org/whl/cu129
+torchvision==0.23.0+cu129 --index-url https://download.pytorch.org/whl/cu129
 matplotlib==3.9.4
 Pillow==11.0.0
