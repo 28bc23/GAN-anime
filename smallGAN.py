@@ -233,7 +233,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0001,lr_d=0.0001, latent_dim=100, batch_size=128, epochs=7200)
+gan = GAN(lr_g=0.0001,lr_d=0.0001, latent_dim=100, batch_size=128, epochs=4840)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")

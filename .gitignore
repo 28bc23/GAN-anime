@@ -1,5 +1,4 @@
 data/
-generatedImages/
 test.py
 .idea/
 smallWGAN.py
