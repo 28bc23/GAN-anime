@@ -109,7 +109,7 @@ class GAN:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
-        self.d_steps = 10
+        self.d_steps = 20
 
         self.fixed_noise = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
 
@@ -199,7 +199,7 @@ class GAN:
                 i += 1
                 self.optim_g.step()
                 g_loss_m += g_loss.item()
-                if g_loss.item() < 0.35:
+                if g_loss.item() < 0.45:
                     break
 
             # ---- Graph data ----
@@ -245,7 +245,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.00005,lr_d=0.00005, latent_dim=100, batch_size=128, epochs=600)
+gan = GAN(lr_g=8e-5,lr_d=8e-5, latent_dim=100, batch_size=128, epochs=500)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
