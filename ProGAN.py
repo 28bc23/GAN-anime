@@ -9,6 +9,27 @@ class PixelNorm(nn.Module):
 
     def forward(self, x):
         return x / torch.sqrt(torch.mean(x ** 2, dim=1, keepdim=True) + self.epsilon)
+class ELRConv(nn.Module):
+    def __init__(self,in_channels, out_channels, kernel_size, stride=1, padding=0, gain = 2):
+        super(ELRConv, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+
+        self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
+
+        bias = self.conv.bias
+        self.bias = nn.Parameter(bias.view(1, self.bias.shape[0], 1,1))
+        self.conv.bias = None
+
+        self.scaler = torch.sqrt(gain/(kernel_size**2 * in_channels))
+
+        nn.init.normal_(self.conv.weight)
+        nn.init.constant(self.bias, val=0)
+    def forward(self, x):
+        return self.conv(x * self.scaler) + self.bias
 
 class conv_block(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias, leak, pix_norm = True, eps=1e-8):
