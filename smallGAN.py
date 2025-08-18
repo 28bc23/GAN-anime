@@ -153,6 +153,9 @@ class GAN:
     def train(self):
         for epoch in range(self.epochs):
             batch = self.get_batch()
+            r_d_m = 0
+            f_d_m = 0
+            d_loss_m = 0
             for _ in range(self.d_steps):
                 # ---- Discriminator optim ----
 
@@ -164,6 +167,7 @@ class GAN:
                 d_loss_r = self.loss(r_out, label)
                 d_loss_r.backward()
                 r_d = r_out.mean().item()
+                r_d_m += r_d
                 # -- fake --
                 noise = torch.randn(batch.size(0), self.latent_dim, 1, 1, device=self.device)
                 f = self.generator(noise)
@@ -173,9 +177,14 @@ class GAN:
                 d_loss_f = self.loss(f_out, label)
                 d_loss_f.backward()
                 f_d = f_out.mean().item()
+                f_d_m += f_d
                 d_loss = d_loss_r + d_loss_f
                 self.optim_d.step()
+                d_loss_m += d_loss.item()
 
+            fg_d_m = 0
+            g_loss_m = 0
+            i = 0
             while True:
                 # ---- Generator optim ----
                 self.optim_g.zero_grad()
@@ -186,20 +195,23 @@ class GAN:
                 g_loss = self.loss(out, label)
                 g_loss.backward()
                 fg_d = out.mean().item()
+                fg_d_m += fg_d
+                i += 1
                 self.optim_g.step()
-                if g_loss.item() < 0.5:
+                g_loss_m += g_loss.item()
+                if g_loss.item() < 0.35:
                     break
 
             # ---- Graph data ----
             print(f"epoch: {epoch}/{self.epochs}, "
-                  f"g_loss: {g_loss.item():.4f}, "
-                  f"d_loss: {d_loss.item():.4f}, "
-                  f"d_real_detect: {r_d}, "
-                  f"d_fake_detect: {f_d}, "
-                  f"d_fake_detect_v2: {fg_d}")
+                  f"g_loss: {g_loss_m/i:.4f}, "
+                  f"d_loss: {d_loss_m/self.d_steps:.4f}, "
+                  f"d_real_detect: {r_d_m/self.d_steps}, "
+                  f"d_fake_detect: {f_d/self.d_steps}, "
+                  f"d_fake_detect_v2: {fg_d_m/i}")
 
-            self.total_g_loss.append(g_loss.item())
-            self.total_d_loss.append(d_loss.item())
+            self.total_g_loss.append(g_loss_m/i)
+            self.total_d_loss.append(d_loss_m/self.d_steps)
 
             if epoch % 10 == 0:
                 self.save()
@@ -233,7 +245,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=0.0001,lr_d=0.0001, latent_dim=100, batch_size=128, epochs=4840)
+gan = GAN(lr_g=0.00005,lr_d=0.00005, latent_dim=100, batch_size=128, epochs=600)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
