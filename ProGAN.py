@@ -47,27 +47,91 @@ class ELRLinear(nn.Module):
         return self.fc(x * self.scaler) + self.bias
 
 class conv_block(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias, leak, pix_norm = True, eps=1e-8):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, leak, pix_norm = True, eps=1e-8):
         super(conv_block, self).__init__()
         self.pix_norm = pix_norm
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        self.conv = ELRConv(in_channels, out_channels, kernel_size, stride, padding)
         self.pixel_norm = PixelNorm(eps=eps)
         self.leaky_relu = nn.LeakyReLU(leak, True)
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.leaky_relu(x)
-        x = self.pixel_norm(x) if self.pix_norm else x
-        x = self.conv2(x)
+        x = self.conv(x)
         x = self.leaky_relu(x)
         x = self.pixel_norm(x) if self.pix_norm else x
         return x
 
+class ReshapeLatent(nn.Module):
+    def __init__(self, latent_size):
+        super(ReshapeLatent, self).__init__()
+        self.latent_size = latent_size
+    def forward(self, x):
+        return x.view(x.size[0], self.latent_size, 4, 4)
+
+class block (nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(block, self).__init__()
+        self.block = nn.Sequential(
+            nn.UpsamplingNearest2d(scale_factor=2),
+            conv_block(in_channels, out_channels, 4, 1, 3, .2, True),
+            conv_block(out_channels, out_channels, 3, 1, 1, .2, True),
+        )
+    def forward(self, x):
+        return self.block(x)
+
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_size = 512):
         super(Generator, self).__init__()
+
+        self.latent_size = latent_size
+        self.step = 1
+
+        first = nn.Sequential(
+            ELRLinear(self.latent_size, self.latent_size*4*4),
+            ReshapeLatent(self.latent_size),
+            conv_block(self.latent_size, self.latent_size, 4, 1, 3, .2, True),
+            conv_block(self.latent_size, self.latent_size, 3, 1, 1, .2, True),
+        )
+
+        self.blocks = nn.ModuleList([
+            first,                                 #1
+            block(512, 512), #2
+            block(512, 512), #3
+            block(512, 512), #4
+            block(512, 256), #5
+            block(256, 128), #6
+            block(128, 64),  #7
+            block(64, 32),   #8
+            block(32, 16),   #9
+        ])
+
+        self.to_rgb_old = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
+        self.to_rgb_new = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
+    def extend(self):
+        self.step += 1
+
+        if self.step == 5:
+            self.to_rgb_old = self.to_rgb_new
+            self.to_rgb_new = ELRConv(256, 3, 3, (1, 2), 1)
+        elif self.step == 6:
+            self.to_rgb_old = self.to_rgb_new
+            self.to_rgb_new = ELRConv(128, 3, 3, (1, 2), 1)
+        elif self.step == 7:
+            self.to_rgb_old = self.to_rgb_new
+            self.to_rgb_new = ELRConv(64, 3, 3, (1, 2), 1)
+        elif self.step == 8:
+            self.to_rgb_old = self.to_rgb_new
+            self.to_rgb_new = ELRConv(32, 3, 3, (1, 2), 1)
+        elif self.step == 9:
+            self.to_rgb_old = self.to_rgb_new
+            self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
+    def forward(self, x):
+        x_old = None
+        for block in range(0, self.step):
+            x = self.blocks[block](x)
+            if block == self.step-2:
+                x_old = x
+
 
 class Discriminator(nn.Module):
     def __init__(self):
