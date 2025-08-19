@@ -83,12 +83,12 @@ class Discriminator(nn.Module):
         return val
 
 class GAN:
-    def __init__(self, lr_g, lr_d, latent_dim, batch_size, epochs):
+    def __init__(self, lr_g, lr_d, latent_dim, batch_size, steps):
         super(GAN, self).__init__()
 
         self.latent_dim = latent_dim
         self.batch_size = batch_size
-        self.epochs = epochs
+        self.steps = steps
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -151,7 +151,7 @@ class GAN:
         batch = torch.stack(batch).to(self.device)
         return batch
     def train(self):
-        for epoch in range(self.epochs):
+        for step in range(self.steps):
             batch = self.get_batch()
             r_d_m = 0
             f_d_m = 0
@@ -203,7 +203,7 @@ class GAN:
                     break
 
             # ---- Graph data ----
-            print(f"epoch: {epoch}/{self.epochs}, "
+            print(f"step: {step}/{self.steps}, "
                   f"g_loss: {g_loss_m/i:.4f}, "
                   f"d_loss: {d_loss_m/self.d_steps:.4f}, "
                   f"d_real_detect: {r_d_m/self.d_steps}, "
@@ -213,14 +213,14 @@ class GAN:
             self.total_g_loss.append(g_loss_m/i)
             self.total_d_loss.append(d_loss_m/self.d_steps)
 
-            if epoch % 10 == 0:
+            if step % 10 == 0:
                 self.save()
 
-            if epoch % 10 == 0:
+            if step % 10 == 0:
                 self.generator.eval()
                 with torch.no_grad():
                     fake_img = self.generator(self.fixed_noise).detach().cpu()
-                self.save_img(fake_img, epoch)
+                self.save_img(fake_img, step)
                 self.generator.train()
 
         self.graph()
@@ -245,7 +245,7 @@ class GAN:
         img = (img * 255).astype(np.uint8)
         Image.fromarray(img).save(f"generatedImages/gen{e}.png")
 
-gan = GAN(lr_g=8e-5,lr_d=8e-5, latent_dim=100, batch_size=128, epochs=500)
+gan = GAN(lr_g=8e-5,lr_d=8e-5, latent_dim=100, batch_size=128, steps=460)
 print(gan.device)
 
 load = input("Wanna load model?[Y/n]: ")
