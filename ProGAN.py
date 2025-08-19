@@ -74,13 +74,11 @@ class block (nn.Module):
         super(block, self).__init__()
         self.block = nn.Sequential(
             nn.UpsamplingNearest2d(scale_factor=2),
-            conv_block(in_channels, out_channels, 4, 1, 3, .2, True),
+            conv_block(in_channels, out_channels, 3, 1, 1, .2, True),
             conv_block(out_channels, out_channels, 3, 1, 1, .2, True),
         )
     def forward(self, x):
-        print("block1: ", x.shape)
         x = self.block(x)
-        print("block2: ", x.shape)
         return x
 
 
@@ -91,11 +89,12 @@ class Generator(nn.Module):
         self.latent_size = latent_size
         self.step = 1
         self.alpha = 0
+        self.upsample = nn.UpsamplingNearest2d(scale_factor=2)
 
         first = nn.Sequential(
             ELRLinear(self.latent_size, self.latent_size*4*4),
             ReshapeLatent(self.latent_size),
-            conv_block(self.latent_size, self.latent_size, 4, 1, 3, .2, True),
+            conv_block(self.latent_size, self.latent_size, 4, 2, 3, .2, True),
             conv_block(self.latent_size, self.latent_size, 3, 1, 1, .2, True),
         )
 
@@ -114,36 +113,37 @@ class Generator(nn.Module):
         self.to_rgb_old = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
         self.to_rgb_new = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
     def extend(self):
-        self.step += 1
+        if self.step != 9:
+            self.step += 1
 
-        if self.step == 5:
-            self.to_rgb_old = self.to_rgb_new
-            self.to_rgb_new = ELRConv(256, 3, 3, (1, 2), 1)
-        elif self.step == 6:
-            self.to_rgb_old = self.to_rgb_new
-            self.to_rgb_new = ELRConv(128, 3, 3, (1, 2), 1)
-        elif self.step == 7:
-            self.to_rgb_old = self.to_rgb_new
-            self.to_rgb_new = ELRConv(64, 3, 3, (1, 2), 1)
-        elif self.step == 8:
-            self.to_rgb_old = self.to_rgb_new
-            self.to_rgb_new = ELRConv(32, 3, 3, (1, 2), 1)
-        elif self.step == 9:
-            self.to_rgb_old = self.to_rgb_new
-            self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
-        self.alpha = 0
+            if self.step == 5:
+                self.to_rgb_old = self.to_rgb_new
+                self.to_rgb_new = ELRConv(256, 3, 3, (1, 2), 1)
+            elif self.step == 6:
+                self.to_rgb_old = self.to_rgb_new
+                self.to_rgb_new = ELRConv(128, 3, 3, (1, 2), 1)
+            elif self.step == 7:
+                self.to_rgb_old = self.to_rgb_new
+                self.to_rgb_new = ELRConv(64, 3, 3, (1, 2), 1)
+            elif self.step == 8:
+                self.to_rgb_old = self.to_rgb_new
+                self.to_rgb_new = ELRConv(32, 3, 3, (1, 2), 1)
+            elif self.step == 9:
+                self.to_rgb_old = self.to_rgb_new
+                self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
+            self.alpha = 0
     def forward(self, x):
         x_old = None
         for block in range(0, self.step):
-            print("block-f1: ", x.shape)
             x = self.blocks[block](x)
-            print("block-f2: ", x.shape)
             if block == self.step-2:
-                x_old = x
+                x_old = self.upsample(x)
         if x_old is not None:
-            print(x.shape)
-            print(x_old.shape)
-            print("alpha", self.alpha)
+            x_old = self.to_rgb_old(x_old)
+            x = self.to_rgb_new(x)
+            print("alpha: ", self.alpha)
+            print("x_old: ", x_old.shape)
+            print("x: ", x.shape)
             out = x_old * (1 - self.alpha) + x * self.alpha
             self.alpha += 0.01
         else:
@@ -160,8 +160,4 @@ class Discriminator(nn.Module):
         batch_statistics = (torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]))
         return torch.cat([x, batch_statistics], dim=1)
 
-g = Generator()
-latent_vector = torch.randn(1, 512, 1, 1)
-x = g(latent_vector)
-g.extend()
-x = g(latent_vector)
+
