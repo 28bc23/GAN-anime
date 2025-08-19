@@ -1,4 +1,6 @@
 #TODO: generator, discriminator, train loop, chaining blocks, upscaling
+from torch.utils.data import DataLoader, dataloader
+from torchvision import datasets, transforms
 from torch import nn
 import torch
 
@@ -161,3 +163,21 @@ class Discriminator(nn.Module):
         return torch.cat([x, batch_statistics], dim=1)
 
 
+class ProGAN:
+    def __init__(self, epochs = 5, batch_size = 128):
+
+        self.batch_size = batch_size
+        self.epochs = epochs
+
+        self.generator = Generator()
+        self.discriminator = Discriminator()
+        self.dataset = self.get_dataset()
+    def get_dataset(self):
+        dataset = datasets.ImageFolder(root="./data")
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
+        return dataloader
+    def train(self):
+        for epoch in range(self.epochs):
+            for i, data in enumerate(self.dataset):
+                transforms = self.discriminator.get_transforms()
+                data = transforms(data)
