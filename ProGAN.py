@@ -21,29 +21,31 @@ class ELRConv(nn.Module):
         self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
 
         bias = self.conv.bias
-        self.bias = nn.Parameter(bias.view(1, self.bias.shape[0], 1,1))
+        self.bias = nn.Parameter(bias.view(1, bias.shape[0], 1,1))
         self.conv.bias = None
 
-        self.scaler = torch.sqrt(gain/(kernel_size**2 * in_channels))
+        self.scaler = (gain / (in_channels * (kernel_size ** 2))) ** 0.5
 
         nn.init.normal_(self.conv.weight)
-        nn.init.constant(self.bias, val=0)
+        nn.init.constant_(self.bias, val=0)
     def forward(self, x):
         return self.conv(x * self.scaler) + self.bias
 
 class ELRLinear(nn.Module):
     def __init__(self, in_dim, out_dim, gain = 2):
         super(ELRLinear, self).__init__()
+        self.flat = nn.Flatten()
         self.fc = nn.Linear(in_dim, out_dim, bias=True)
 
         self.bias = self.fc.bias
         self.fc.bias = None
 
-        self.scaler = torch.sqrt(gain/in_dim)
+        self.scaler = (gain/in_dim)**0.5
 
         nn.init.normal_(self.fc.weight)
-        nn.init.constant(self.bias, val=0)
+        nn.init.constant_(self.bias, val=0)
     def forward(self, x):
+        x = self.flat(x)
         return self.fc(x * self.scaler) + self.bias
 
 class conv_block(nn.Module):
@@ -65,7 +67,7 @@ class ReshapeLatent(nn.Module):
         super(ReshapeLatent, self).__init__()
         self.latent_size = latent_size
     def forward(self, x):
-        return x.view(x.size[0], self.latent_size, 4, 4)
+        return x.view(x.size(0), self.latent_size, 4, 4)
 
 class block (nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -76,7 +78,10 @@ class block (nn.Module):
             conv_block(out_channels, out_channels, 3, 1, 1, .2, True),
         )
     def forward(self, x):
-        return self.block(x)
+        print("block1: ", x.shape)
+        x = self.block(x)
+        print("block2: ", x.shape)
+        return x
 
 
 class Generator(nn.Module):
@@ -85,6 +90,7 @@ class Generator(nn.Module):
 
         self.latent_size = latent_size
         self.step = 1
+        self.alpha = 0
 
         first = nn.Sequential(
             ELRLinear(self.latent_size, self.latent_size*4*4),
@@ -125,12 +131,25 @@ class Generator(nn.Module):
         elif self.step == 9:
             self.to_rgb_old = self.to_rgb_new
             self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
+        self.alpha = 0
     def forward(self, x):
         x_old = None
         for block in range(0, self.step):
+            print("block-f1: ", x.shape)
             x = self.blocks[block](x)
+            print("block-f2: ", x.shape)
             if block == self.step-2:
                 x_old = x
+        if x_old is not None:
+            print(x.shape)
+            print(x_old.shape)
+            print("alpha", self.alpha)
+            out = x_old * (1 - self.alpha) + x * self.alpha
+            self.alpha += 0.01
+        else:
+            print("x")
+            out = x
+        return out
 
 
 class Discriminator(nn.Module):
@@ -140,3 +159,9 @@ class Discriminator(nn.Module):
     def minibatch_std(self, x):
         batch_statistics = (torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]))
         return torch.cat([x, batch_statistics], dim=1)
+
+g = Generator()
+latent_vector = torch.randn(1, 512, 1, 1)
+x = g(latent_vector)
+g.extend()
+x = g(latent_vector)
