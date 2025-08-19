@@ -71,9 +71,9 @@ class ReshapeLatent(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), self.latent_size, 4, 4)
 
-class block (nn.Module):
+class blockG (nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(block, self).__init__()
+        super(blockG, self).__init__()
         self.block = nn.Sequential(
             nn.UpsamplingNearest2d(scale_factor=2),
             conv_block(in_channels, out_channels, 3, 1, 1, .2, True),
@@ -83,33 +83,51 @@ class block (nn.Module):
         x = self.block(x)
         return x
 
+class blockD (nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(blockD, self).__init__()
+        self.block = nn.Sequential(
+            conv_block(in_channels, in_channels, 3, 1, 1, .2, False),
+            conv_block(in_channels, out_channels, 3, 1, 1, .2, False),
+            nn.AvgPool2d(kernel_size=2, stride=2)
+        )
+    def forward(self, x):
+        x = self.block(x)
+        return x
+
+class minibatch_std(nn.Module):
+    def forward(self, x):
+        batch_statistics = (torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]))
+        return torch.cat([x, batch_statistics], dim=1)
+
 
 class Generator(nn.Module):
-    def __init__(self, latent_size = 512):
+    def __init__(self, latent_size = 512, alpha_addition = 0.01):
         super(Generator, self).__init__()
 
         self.latent_size = latent_size
         self.step = 1
         self.alpha = 0
         self.upsample = nn.UpsamplingNearest2d(scale_factor=2)
+        self.alpha_addition = alpha_addition
 
         first = nn.Sequential(
-            ELRLinear(self.latent_size, self.latent_size*4*4),
+            ELRLinear(self.latent_size, self.latent_size * 4 * 4),
             ReshapeLatent(self.latent_size),
             conv_block(self.latent_size, self.latent_size, 4, 2, 3, .2, True),
-            conv_block(self.latent_size, self.latent_size, 3, 1, 1, .2, True),
+            conv_block(self.latent_size, self.latent_size, 3, 1, 1, .2, True)
         )
 
         self.blocks = nn.ModuleList([
             first,                                 #1
-            block(512, 512), #2
-            block(512, 512), #3
-            block(512, 512), #4
-            block(512, 256), #5
-            block(256, 128), #6
-            block(128, 64),  #7
-            block(64, 32),   #8
-            block(32, 16),   #9
+            blockG(3, 512), #2
+            blockG(512, 512), #3
+            blockG(512, 512), #4
+            blockG(512, 256), #5
+            blockG(256, 128), #6
+            blockG(128, 64),  #7
+            blockG(64, 32),   #8
+            blockG(32, 16),   #9
         ])
 
         self.to_rgb_old = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
@@ -135,6 +153,8 @@ class Generator(nn.Module):
                 self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
             self.alpha = 0
     def forward(self, x):
+        if self.alpha == 1:
+            self.extend()
         x_old = None
         for block in range(0, self.step):
             x = self.blocks[block](x)
@@ -147,20 +167,101 @@ class Generator(nn.Module):
             print("x_old: ", x_old.shape)
             print("x: ", x.shape)
             out = x_old * (1 - self.alpha) + x * self.alpha
-            self.alpha += 0.01
+            self.alpha += self.alpha_addition
         else:
             print("x")
-            out = x
+            out = self.to_rgb_new(x)
         return out
 
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, alpha_addition = 0.01):
         super(Discriminator, self).__init__()
+        self.downsample = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.step = 1
+        self.alpha = 0
+        self.alpha_addition = alpha_addition
 
-    def minibatch_std(self, x):
-        batch_statistics = (torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]))
-        return torch.cat([x, batch_statistics], dim=1)
+        self.from_rgb = nn.ModuleList([])
+
+        self.resolution = (4, 2)
+        self.transform = transforms.Compose([
+            transforms.Resize((4, 2)),
+            transforms.RandomHorizontalFlip(.5),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        out_channels = 512
+        y_size = 2
+        for i in range(0, 9):
+            if i <= 3:
+                new_conv = ELRConv(3, out_channels, 3, 1, (1, y_size/2 + 1))
+                y_size = y_size * 2
+            else:
+                out_channels = out_channels / 2
+                new_conv = ELRConv(3, out_channels, 3, 1, (1, y_size/2 + 1))
+                y_size = y_size * 2
+            self.from_rgb.append(new_conv)
+
+        first = nn.Sequential(
+            conv_block(3, 16, 1, 1, 0, .2, False),
+            conv_block(16, 16, 3, 1, 1, .2, False),
+            conv_block(16, 32, 3, 1, 1, .2, False),
+            self.downsample()
+        )
+        last = nn.Sequential(
+            minibatch_std(),
+            conv_block(513, 512, 3, 1, 1, .2, False),
+            conv_block(512, 512, 4, 1, 0, .2, False),
+            nn.Flatten(),
+            ELRLinear(512, 1)
+        )
+        self.chain = nn.ModuleList([
+            last()
+        ])
+
+        self.blocks = nn.ModuleList([
+            blockD(512, 512),  # 2
+            blockD(512, 512),  # 3
+            blockD(512, 512),  # 4
+            blockD(256, 512),  # 5
+            blockD(128, 256),  # 6
+            blockD(64, 128),   # 7
+            blockD(32, 64),    # 8
+            first()                                  # 9
+        ])
+    def extend(self):
+        if self.step != 9:
+            self.step += 1
+            self.chain.insert(0, self.blocks.pop(0))
+            self.alpha = 0
+            self.transform = transforms.Compose([
+                transforms.Resize(self.resolution),
+                transforms.RandomHorizontalFlip(.5),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
+            self.resolution = self.resolution * 2
+    def forward(self, x):
+        if self.alpha == 1:
+            self.extend()
+
+        x = self.from_rgb[self.step-1](x)
+        x_old = self.downsample(x)
+        for block in self.chain:
+            x = block(x)
+
+        if self.step != 1:
+            out = x_old * (1 - self.alpha) + x * self.alpha
+            self.alpha += self.alpha_addition
+        else:
+            out = x
+
+        return out, self.transform
+    def get_transform(self):
+        return self.transform
+
 
 
 class ProGAN:
@@ -177,7 +278,7 @@ class ProGAN:
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
         return dataloader
     def train(self):
+        transform = self.discriminator.get_transform()
         for epoch in range(self.epochs):
-            for i, data in enumerate(self.dataset):
-                transforms = self.discriminator.get_transforms()
-                data = transforms(data)
+            for i, batch in enumerate(self.dataset):
+                batch = transform(batch)
