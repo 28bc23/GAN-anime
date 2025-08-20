@@ -1,4 +1,6 @@
 import os
+import random
+
 import numpy as np
 
 import torch
@@ -320,7 +322,7 @@ class ProGAN:
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=d_betas)
 
         self.dataset = self.get_dataset()
-
+        self.fixed_noise = torch.randn(1, self.latent_size, 1, 1).to(self.device)
 
         ### graph data ###
         self.epoch_losses_g = []
@@ -397,7 +399,7 @@ class ProGAN:
 
                 if (generator is not None) and (discriminator is not None) and (optim_g is not None) and (optim_d is not None):
                     self.start_epochs = epoch
-                    self.save_step = step
+                    self.start_steps = step
                     self.start_extend_level = extend_level
                     self.start_g_state_dict = generator
                     self.start_d_state_dict = discriminator
@@ -423,7 +425,27 @@ class ProGAN:
                 else:
                     print("--- not loaded ---")
 
+    def generate(self, noise = None, number = None):
+        self.generator.eval()
 
+        noise = noise if noise is not None else torch.randn(1, self.latent_size, 1, 1).to(self.device)
+        number = number if number is not None else random.randint(0, 99999)
+
+        with torch.no_grad():
+            image = self.generator(noise, 1)
+        image = image.detach().cpu().squeeze().permute(1, 2, 0).numpy()
+        image = (image + 1) / 2
+        image = (image * 255).astype(np.uint8)
+
+        path = f"generatedImages/ProGAN"
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        path = f"{path}/gen{number}.png"
+        Image.fromarray(image).save(path)
+        print(f"--- Saved generated image on {path} ---")
+
+        self.generator.train()
 
     def graph(self):
         fig, axes = plt.subplots(1, 4, figsize=(24, 5))
@@ -585,19 +607,18 @@ class ProGAN:
                 if g_alpha < 1:
                     g_alpha += self.g_alpha_addition
 
-                if step % self.save_step == 0:
+                if (step % self.save_step) == 0:
                     self.save(epoch=epoch, extend_level=extend_level, step=step, alpha_d=d_alpha, alpha_g=g_alpha)
+
+                    number = f"{epoch}-{step}"
+                    self.generate(noise=self.fixed_noise, number=number)
             self.epoch_losses_g.append(np.mean(step_losses_g).item())
             self.epoch_losses_d.append(np.mean(step_losses_d).item())
             self.save(epoch=self.epochs, extend_level=extend_level, step=0, alpha_d=d_alpha, alpha_g=g_alpha)
             self.graph()
+            number = f"{epoch}-0"
+            self.generate(noise=self.fixed_noise, number=number)
 
 
-progan = ProGAN(epochs=1, batch_size=2)
+progan = ProGAN(epochs=1, batch_size=2, load=False)
 progan.train()
-
-
-'''
-Discriminator, epoch: 0, step: 620, itter: 1, batch: 620/20000, d_loss: -2.7397656440734863, gp: 0.13235074281692505, real_val: 2.9852075576782227, fake_val: -1.0780653953552246, extend level: 0, alpha: 0.031000000000000374
-Generator, epoch: 0, step: 620, itter: 0, batch: 620/20000, g_loss: 0.5508434176445007, val: -0.5508434176445007, extend level: 0, alpha: 0.031000000000000374
-'''
