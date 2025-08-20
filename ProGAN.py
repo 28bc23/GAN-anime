@@ -172,13 +172,8 @@ class Generator(nn.Module):
         if x_old is not None:
             x_old = self.to_rgb_old(x_old)
             x = self.to_rgb_new(x)
-            print("alpha: ", self.alpha)
-            print("x_old: ", x_old.shape)
-            print("x: ", x.shape)
             out = x_old * (1 - self.alpha) + x * self.alpha
-            print("gen out: ", out.shape)
         else:
-            print("x")
             out = self.to_rgb_new(x)
         return out
 
@@ -214,6 +209,8 @@ class Discriminator(nn.Module):
                 new_conv = ELRConv(3, int(out_channels), 3, 1, (1, int(y_size/2 + 1)))
                 y_size = y_size * 2
             self.from_rgb.append(new_conv)
+
+        self.rectTosqar = ELRConv(3, 3, 3, 1, (1, int(512/2 + 1)))
 
         first = nn.Sequential(
             ConvBlock(3, 16, 1, 1, 0, .2, False),
@@ -258,9 +255,19 @@ class Discriminator(nn.Module):
         return self.transform
     def forward(self, x, alpha):
         self.alpha = alpha
+        if self.step != 9:
+            if self.step != 1:
+                x_old = self.downsample(x)
+                x_old = self.from_rgb[self.step-2](x_old)
 
-        x = self.from_rgb[self.step-1](x)
-        x_old = self.downsample(x)
+                x = self.from_rgb[self.step-1](x)
+            else:
+                x = self.from_rgb[self.step-1](x)
+                x_old = self.downsample(x)
+        else:
+            x_old = self.downsample(x)
+            x_old = self.from_rgb[self.step - 2](x_old)
+            x = self.rectTosqar(x)
 
         for i, block in enumerate(self.chain):
             x = block(x)
@@ -425,6 +432,7 @@ class ProGAN:
         transform = self.discriminator.get_transform()
         d_alpha = 0
         g_alpha = 0
+        extend_level = 0
 
         self.generator.train()
         self.discriminator.train()
@@ -438,14 +446,16 @@ class ProGAN:
             step_losses_d = []
             for step, (batch, label) in enumerate(self.dataset):
 
-                if d_alpha + g_alpha >= 2:
+                if d_alpha + g_alpha >= 2 and extend_level != 10:
                     transform = self.discriminator.extend()
                     self.generator.extend()
+                    d_alpha = 0
+                    g_alpha = 0
+                    extend_level += 1
                     print("--- extended ---")
 
                 batch = transform(batch)
                 batch = batch.to(self.device)
-                print("batch shape: ", batch.shape)
 
 
                 ### Discriminator optim ###
@@ -471,7 +481,7 @@ class ProGAN:
                     log_fake_val = torch.mean(fake_val.detach()).item()
                     log_d_loss = d_loss.item()
                     
-                    print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}, alpha: {d_alpha}")
+                    print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}, extend level: {extend_level}, alpha: {d_alpha}")
                     
                     self.d_real_values.append(log_real_val)
                     self.d_fake_values.append(log_fake_val)
@@ -496,7 +506,7 @@ class ProGAN:
                     log_g_loss = g_loss.item()
                     log_fake_val = torch.mean(fake_val.detach()).item()
                     
-                    print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, g_loss: {log_g_loss}, val: {log_fake_val}, alpha: {g_alpha}")
+                    print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, g_loss: {log_g_loss}, val: {log_fake_val}, extend level: {extend_level}, alpha: {g_alpha}")
                     
                     self.g_values.append(log_fake_val)
                     self.itter_losses_g.append(log_g_loss)
@@ -513,5 +523,5 @@ class ProGAN:
             self.graph()
 
 
-progan = ProGAN(alpha_addition=1, cuda=True, batch_size=16, epochs=1)
+progan = ProGAN(alpha_addition=1, cuda=False, batch_size=1, epochs=1)
 progan.train()
