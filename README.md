@@ -21,7 +21,7 @@ or rewrite my code, so it fits to your dataset
 <img width="397" height="490" alt="Example of folder layout for generating images from a pre-trained model and training your own model" src="https://github.com/user-attachments/assets/06d8a40e-814f-4be7-94c5-fd32155398b8" />
 
 
-**Small GAN - 2800 epochs**
+**Small GAN - 2800 steps**
 
 <img width="64" height="128" alt="gen0" src="https://github.com/user-attachments/assets/78b8ddc1-158f-4e1a-a675-f4fac3cc9e7d" />
 <img width="64" height="128" alt="gen8" src="https://github.com/user-attachments/assets/0291490b-cec6-4dda-b243-3dd93d5754f9" />
