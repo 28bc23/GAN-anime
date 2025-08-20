@@ -1,8 +1,16 @@
-#TODO: generator, discriminator, train loop, chaining blocks, upscaling
-from torch.utils.data import DataLoader, dataloader
-from torchvision import datasets, transforms
-from torch import nn
+import os
+import numpy as np
+
 import torch
+from torch import nn
+from torch import optim
+from torch.utils.data import DataLoader
+
+from torchvision import datasets, transforms
+
+from matplotlib import pyplot as plt
+
+
 
 class PixelNorm(nn.Module):
     def __init__(self, eps = 1e-8):
@@ -50,9 +58,9 @@ class ELRLinear(nn.Module):
         x = self.flat(x)
         return self.fc(x * self.scaler) + self.bias
 
-class conv_block(nn.Module):
+class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, leak, pix_norm = True, eps=1e-8):
-        super(conv_block, self).__init__()
+        super(ConvBlock, self).__init__()
         self.pix_norm = pix_norm
 
         self.conv = ELRConv(in_channels, out_channels, kernel_size, stride, padding)
@@ -71,31 +79,31 @@ class ReshapeLatent(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), self.latent_size, 4, 4)
 
-class blockG (nn.Module):
+class BlockG (nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(blockG, self).__init__()
+        super(BlockG, self).__init__()
         self.block = nn.Sequential(
             nn.UpsamplingNearest2d(scale_factor=2),
-            conv_block(in_channels, out_channels, 3, 1, 1, .2, True),
-            conv_block(out_channels, out_channels, 3, 1, 1, .2, True),
+            ConvBlock(in_channels, out_channels, 3, 1, 1, .2, True),
+            ConvBlock(out_channels, out_channels, 3, 1, 1, .2, True),
         )
     def forward(self, x):
         x = self.block(x)
         return x
 
-class blockD (nn.Module):
+class BlockD (nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(blockD, self).__init__()
+        super(BlockD, self).__init__()
         self.block = nn.Sequential(
-            conv_block(in_channels, in_channels, 3, 1, 1, .2, False),
-            conv_block(in_channels, out_channels, 3, 1, 1, .2, False),
+            ConvBlock(in_channels, in_channels, 3, 1, 1, .2, False),
+            ConvBlock(in_channels, out_channels, 3, 1, 1, .2, False),
             nn.AvgPool2d(kernel_size=2, stride=2)
         )
     def forward(self, x):
         x = self.block(x)
         return x
 
-class minibatch_std(nn.Module):
+class MinibatchStd(nn.Module):
     def forward(self, x):
         batch_statistics = (torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3]))
         return torch.cat([x, batch_statistics], dim=1)
@@ -114,20 +122,20 @@ class Generator(nn.Module):
         first = nn.Sequential(
             ELRLinear(self.latent_size, self.latent_size * 4 * 4),
             ReshapeLatent(self.latent_size),
-            conv_block(self.latent_size, self.latent_size, 4, 2, 3, .2, True),
-            conv_block(self.latent_size, self.latent_size, 3, 1, 1, .2, True)
+            ConvBlock(self.latent_size, self.latent_size, 4, 2, 3, .2, True),
+            ConvBlock(self.latent_size, self.latent_size, 3, 1, 1, .2, True)
         )
 
         self.blocks = nn.ModuleList([
             first,                                 #1
-            blockG(3, 512), #2
-            blockG(512, 512), #3
-            blockG(512, 512), #4
-            blockG(512, 256), #5
-            blockG(256, 128), #6
-            blockG(128, 64),  #7
-            blockG(64, 32),   #8
-            blockG(32, 16),   #9
+            BlockG(3, 512), #2
+            BlockG(512, 512), #3
+            BlockG(512, 512), #4
+            BlockG(512, 256), #5
+            BlockG(256, 128), #6
+            BlockG(128, 64),  #7
+            BlockG(64, 32),   #8
+            BlockG(32, 16),   #9
         ])
 
         self.to_rgb_old = ELRConv(self.latent_size, 3, 3, (1, 2), 1)
@@ -205,15 +213,15 @@ class Discriminator(nn.Module):
             self.from_rgb.append(new_conv)
 
         first = nn.Sequential(
-            conv_block(3, 16, 1, 1, 0, .2, False),
-            conv_block(16, 16, 3, 1, 1, .2, False),
-            conv_block(16, 32, 3, 1, 1, .2, False),
+            ConvBlock(3, 16, 1, 1, 0, .2, False),
+            ConvBlock(16, 16, 3, 1, 1, .2, False),
+            ConvBlock(16, 32, 3, 1, 1, .2, False),
             self.downsample()
         )
         last = nn.Sequential(
-            minibatch_std(),
-            conv_block(513, 512, 3, 1, 1, .2, False),
-            conv_block(512, 512, 4, 1, 0, .2, False),
+            MinibatchStd(),
+            ConvBlock(513, 512, 3, 1, 1, .2, False),
+            ConvBlock(512, 512, 4, 1, 0, .2, False),
             nn.Flatten(),
             ELRLinear(512, 1)
         )
@@ -222,13 +230,13 @@ class Discriminator(nn.Module):
         ])
 
         self.blocks = nn.ModuleList([
-            blockD(512, 512),  # 2
-            blockD(512, 512),  # 3
-            blockD(512, 512),  # 4
-            blockD(256, 512),  # 5
-            blockD(128, 256),  # 6
-            blockD(64, 128),   # 7
-            blockD(32, 64),    # 8
+            BlockD(512, 512),  # 2
+            BlockD(512, 512),  # 3
+            BlockD(512, 512),  # 4
+            BlockD(256, 512),  # 5
+            BlockD(128, 256),  # 6
+            BlockD(64, 128),   # 7
+            BlockD(32, 64),    # 8
             first()                                  # 9
         ])
     def extend(self):
@@ -265,20 +273,202 @@ class Discriminator(nn.Module):
 
 
 class ProGAN:
-    def __init__(self, epochs = 5, batch_size = 128):
+    def __init__(self,load = True, epochs = 5, g_itter = 1, d_itter = 2, batch_size = 128, latent_size = 512, alpha_addition = 0.01, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
 
         self.batch_size = batch_size
         self.epochs = epochs
+        self.latent_size = latent_size
+        self.alpha_addition = alpha_addition
+        self.lambda_gp = lambda_gp
+        self.d_itter = d_itter
+        self.g_itter = g_itter
+        self._load = load
 
-        self.generator = Generator()
-        self.discriminator = Discriminator()
+        if cuda:
+            self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        else:
+            self.device = torch.device('cpu')
+
+        print("device: ", self.device)
+
+        self.generator = Generator(latent_size = self.latent_size, alpha_addition=self.alpha_addition).to(self.device)
+        self.discriminator = Discriminator(alpha_addition=self.alpha_addition).to(self.device)
+
+        self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=g_betas)
+        self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=d_betas)
+
         self.dataset = self.get_dataset()
+
+
+        ### graph data ###
+        self.epoch_losses_g = []
+        self.epoch_losses_d = []
+
+        self.step_losses_g = []
+        self.step_losses_d = []
+
+        self.itter_losses_g = []
+        self.itter_losses_d = []
+
+        self.d_real_values = []
+        self.d_fake_values = []
+
+        self.g_values = []
     def get_dataset(self):
         dataset = datasets.ImageFolder(root="./data")
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
         return dataloader
+
+    def save(self, epoch):
+        path = f"./pre-trainedModels/large/ProGAN/{epoch}"
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        self.generator.save(f"{path}/generator_epoch_{epoch}.pth")
+        self.discriminator.save(f"{path}/discriminator_epoch_{epoch}.pth")
+        print("--- saved ---")
+    def load(self, epoch = None):
+        if epoch is None:
+            path = f"./pre-trainedModels/large/ProGAN"
+            bigger_num = 0
+            for path in os.scandir(path):
+                number = path.name
+                if number.isdigit():
+                    number = int(number)
+                    if number > bigger_num:
+                        bigger_num = number
+            if bigger_num != 0:
+                path = f"{path}/{bigger_num}"
+                self.generator.load_state_dict(torch.load(f"{path}/generator_epoch_{bigger_num}.pth"))
+                self.discriminator.load_state_dict(torch.load(f"{path}/discriminator_epoch_{bigger_num}.pth"))
+                print("--- loaded ---")
+    def graph(self):
+        fig, axes = plt.subplots(1, 4, figsize=(24, 5))
+        fig.suptitle("Training metrics", fontsize=16)
+
+        # Epoch losses
+        axes[0].plot(self.epoch_losses_g, label="Generator epoch mean Loss")
+        axes[0].plot(self.epoch_losses_d, label="Discriminator epoch mean Loss")
+        axes[0].set_title("Epoch losses")
+        axes[0].legend()
+        axes[0].grid(True)
+
+        # Step losses
+        axes[1].plot(self.step_losses_g, label="Generator step mean Loss")
+        axes[1].plot(self.step_losses_d, label="Discriminator step mean Loss")
+        axes[1].set_title("Step losses")
+        axes[1].legend()
+        axes[1].grid(True)
+
+        # Itter losses
+        axes[2].plot(self.itter_losses_g, label="Generator itter mean Loss")
+        axes[2].plot(self.itter_losses_d, label="Discriminator itter mean Loss")
+        axes[2].set_title("Itter losses")
+        axes[2].legend()
+        axes[2].grid(True)
+
+        # Values
+        axes[3].plot(self.d_real_values, label="Discriminator Real values")
+        axes[3].plot(self.d_fake_values, label="Discriminator Fake values")
+        axes[3].plot(self.g_values, label="Generator values")
+        axes[3].set_title("Values")
+        axes[3].legend()
+        axes[3].grid(True)
+
+        plt.tight_layout(rect=(0.0, 0.03, 1.0, 0.95))
+        plt.show()
+
+    def compute_gradient_penalty(self, real_samples, fake_samples):
+        """Compute gradient penalty for WGAN-GP"""
+        batch_size = real_samples.size(0)
+
+        # Create interpolation
+        alpha = torch.rand(batch_size, 1, 1, 1, device=self.device)
+        interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
+
+        # Get discriminator output
+        d_interpolates = self.discriminator(interpolates)
+
+        # Compute gradients
+        gradients = torch.autograd.grad(
+            outputs=d_interpolates,
+            inputs=interpolates,
+            grad_outputs=torch.ones_like(d_interpolates),
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )[0]
+
+        # Flatten gradients
+        gradients = gradients.view(batch_size, -1)
+
+        # Compute gradient penalty: (||gradients||_2 - 1)^2
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
+
     def train(self):
+        if self._load:
+            self.load()
         transform = self.discriminator.get_transform()
         for epoch in range(self.epochs):
-            for i, batch in enumerate(self.dataset):
-                batch = transform(batch)
+            step_losses_g = []
+            step_losses_d = []
+            for step, batch in enumerate(self.dataset):
+                batch = transform(batch).to(self.device)
+
+                ### Discriminator optim ###
+                itter_d_loss = []
+                for i in range(self.d_itter):
+                    self.optim_d.zero_grad()
+
+                    noise = torch.randn(batch.size(0), self.latent_size, 1, 1).to(self.device)
+                    fake = self.generator(noise).detach()
+
+                    real_val = self.discriminator(batch)
+                    fake_val = self.discriminator(fake)
+
+                    gp = self.compute_gradient_penalty(batch, fake).to(self.device)
+
+                    d_loss = torch.mean(fake_val) - torch.mean(real_val) + self.lambda_gp * gp
+                    d_loss.backward()
+                    self.optim_d.step()
+                    
+                    log_real_val = torch.mean(real_val.detach()).item()
+                    log_fake_val = torch.mean(fake_val.detach()).item()
+                    log_d_loss = d_loss.item()
+                    
+                    print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}")
+                    
+                    self.d_real_values.append(log_real_val)
+                    self.d_fake_values.append(log_fake_val)
+                    self.itter_losses_d.append(log_d_loss)
+                    itter_d_loss.append(log_d_loss)
+                    step_losses_d.append(log_d_loss)
+                self.step_losses_d.append(np.mean(itter_d_loss).item())
+
+                ### Generator optim ###
+                
+                itter_g_loss = []
+                for i in range(self.g_itter):
+                    self.optim_g.zero_grad()
+                    noise = torch.randn(batch.size(0), self.latent_size, 1, 1).to(self.device)
+                    fake = self.generator(noise).detach()
+                    fake_val = self.discriminator(fake)
+                    g_loss = -torch.mean(fake_val)
+                    g_loss.backward()
+                    self.optim_g.step()
+                    
+                    log_g_loss = g_loss.item()
+                    log_fake_val = torch.mean(fake_val.detach()).item()
+                    
+                    print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, g_loss: {log_g_loss}, val: {log_fake_val}")
+                    
+                    self.g_values.append(log_fake_val)
+                    self.itter_losses_g.append(log_g_loss)
+                    itter_g_loss.append(log_g_loss)
+                    step_losses_g.append(log_g_loss)
+                self.step_losses_g.append(np.mean(itter_g_loss).item())
+            self.epoch_losses_g.append(np.mean(step_losses_g).item())
+            self.epoch_losses_d.append(np.mean(step_losses_d).item())
+
+
