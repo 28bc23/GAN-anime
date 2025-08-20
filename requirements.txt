@@ -1,6 +1,5 @@
+torch==2.8.0+cu129 -f https://download.pytorch.org/whl/cu129
+torchvision==0.23.0+cu129 -f https://download.pytorch.org/whl/cu129
 numpy==1.26.3
 matplotlib==3.9.4
 Pillow==11.0.0
-
-torch==2.8.0+cu129 --extra-index-url https://download.pytorch.org/whl/cu129
-torchvision==0.23.0+cu129 --extra-index-url https://download.pytorch.org/whl/cu129
