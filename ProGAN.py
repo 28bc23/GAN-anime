@@ -282,11 +282,10 @@ class Discriminator(nn.Module):
 
 
 class ProGAN:
-    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, latent_size = 512, alpha_addition = 0, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
+    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, latent_size = 512, d_alpha_addition = 0, g_alpha_addition = 0, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
 
         self.batch_size = batch_size
         self.epochs = epochs
-        self.start_epochs = 0
         self.latent_size = latent_size
         self.lambda_gp = lambda_gp
         self.d_itter = d_itter
@@ -294,9 +293,18 @@ class ProGAN:
         self._load = load
         self.save_step = save_step
 
-        self.alpha_addition = alpha_addition
-        self.d_alpha_addition = alpha_addition / self.d_itter
-        self.g_alpha_addition = alpha_addition / self.g_itter
+        self.d_alpha_addition = d_alpha_addition
+        self.g_alpha_addition = g_alpha_addition
+
+        self.start_epochs = 0
+        self.start_steps = 0
+        self.start_extend_level = 0
+        self.start_g_state_dict = None
+        self.start_d_state_dict = None
+        self.start_g_optimizer_state_dict = None
+        self.start_d_optimizer_state_dict = None
+        self.start_g_alpha = 0
+        self.start_d_alpha = 0
 
         if cuda:
             self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -337,31 +345,86 @@ class ProGAN:
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
         return dataloader
 
-    def save(self, epoch):
-        epoch = epoch + self.start_epochs
+    def save(self, epoch, extend_level, step, alpha_d, alpha_g):
+        epoch = epoch
         path = f"./pre-trainedModels/large/ProGAN/{epoch}"
         if not os.path.exists(path):
             os.makedirs(path)
 
-        torch.save(self.generator.state_dict(), f"{path}/generator_epoch_{epoch}.pth")
-        torch.save(self.discriminator.state_dict(), f"{path}/discriminator_epoch_{epoch}.pth")
+        save = {
+            'epoch': epoch,
+            'step': step,
+            'extension': extend_level,
+            'generator': self.generator.state_dict(),
+            'discriminator': self.discriminator.state_dict(),
+            'optim_g': self.optim_g.state_dict(),
+            'optim_d': self.optim_d.state_dict(),
+            'alpha_addition_g': self.g_alpha_addition,
+            'alpha_addition_d': self.d_alpha_addition,
+            'alpha_d': alpha_d,
+            'alpha_g': alpha_g,
+        }
+
+        torch.save(save, f"{path}/progan_epoch_{epoch}.pth")
         print("--- saved ---")
     def load(self, epoch = None):
         if epoch is None:
-            path = f"./pre-trainedModels/large/ProGAN"
-            bigger_num = 0
-            for path in os.scandir(path):
-                number = path.name
+            path = f"pre-trainedModels/large/ProGAN"
+            bigger_num = -1
+            for p in os.scandir(path):
+                number = p.name
                 if number.isdigit():
                     number = int(number)
                     if number > bigger_num:
                         bigger_num = number
-            if bigger_num != 0:
-                path = f"{path}/{bigger_num}"
-                self.generator.load_state_dict(torch.load(f"{path}/generator_epoch_{bigger_num}.pth"))
-                self.discriminator.load_state_dict(torch.load(f"{path}/discriminator_epoch_{bigger_num}.pth"))
-                self.start_epochs = bigger_num
-                print("--- loaded ---")
+            print("bigger number: ", bigger_num)
+            if bigger_num != -1:
+                path = f"{path}/{bigger_num}/progan_epoch_{bigger_num}.pth"
+                print(path)
+                save = torch.load(path)
+
+                epoch = save.get('epoch', 0)
+                step = save.get('step', 0)
+                extend_level = save.get('extension', 0)
+                generator = save.get('generator', None)
+                discriminator = save.get('discriminator', None)
+                optim_g = save.get('optim_g', None)
+                optim_d = save.get('optim_d', None)
+                alpha_addition_g = save.get('alpha_addition_g', 0)
+                alpha_addition_d = save.get('alpha_addition_d', 0)
+                alpha_d = save.get('alpha_d', 0)
+                alpha_g = save.get('alpha_g', 0)
+
+                if (generator is not None) and (discriminator is not None) and (optim_g is not None) and (optim_d is not None):
+                    self.start_epochs = epoch
+                    self.save_step = step
+                    self.start_extend_level = extend_level
+                    self.start_g_state_dict = generator
+                    self.start_d_state_dict = discriminator
+                    self.start_g_optimizer_state_dict = optim_g
+                    self.start_d_optimizer_state_dict = optim_d
+                    #self.g_alpha_addition = alpha_addition_g
+                    #self.d_alpha_addition = alpha_addition_d
+                    self.start_g_alpha = alpha_g
+                    self.start_d_alpha = alpha_d
+
+                    for i in range(0, self.start_extend_level):
+                        self.generator.extend()
+                        self.discriminator.extend()
+                    self.generator.load_state_dict(generator)
+                    self.discriminator.load_state_dict(discriminator)
+                    self.generator.alpha = self.start_g_alpha
+                    self.discriminator.alpha = self.start_d_alpha
+
+                    self.optim_g.load_state_dict(optim_g)
+                    self.optim_d.load_state_dict(optim_d)
+
+                    print("--- loaded ---")
+                else:
+                    print("--- not loaded ---")
+
+
+
     def graph(self):
         fig, axes = plt.subplots(1, 4, figsize=(24, 5))
         fig.suptitle("Training metrics", fontsize=16)
@@ -430,23 +493,28 @@ class ProGAN:
         if self._load:
             self.load()
         transform = self.discriminator.get_transform()
-        d_alpha = 0
-        g_alpha = 0
-        extend_level = 0
+        d_alpha = self.start_d_alpha
+        g_alpha = self.start_g_alpha
+        extend_level = self.start_extend_level
 
         self.generator.train()
         self.discriminator.train()
 
-        if self.alpha_addition == 0:
-            self.alpha_addition = 1 / len(self.dataset)
-            print(f"--- Alpha addition was set to 0 using calculated value: {self.alpha_addition} ---")
+        if self.g_alpha_addition == 0:
+            self.g_alpha_addition = 1 / len(self.dataset)
+            print(f"--- G Alpha addition was set to 0 using calculated value: {self.g_alpha_addition} ---")
+        if self.d_alpha_addition == 0:
+            self.d_alpha_addition = 1 / len(self.dataset)
+            print(f"--- G Alpha addition was set to 0 using calculated value: {self.d_alpha_addition} ---")
 
-        for epoch in range(self.epochs):
+        for epoch in range(self.start_epochs, self.epochs):
             step_losses_g = []
             step_losses_d = []
-            for step, (batch, label) in enumerate(self.dataset):
+            for step, (batch, label) in enumerate(self.dataset, start=self.start_steps):
+                d_alpha = 1 if d_alpha >= 1 else d_alpha
+                g_alpha = 1 if g_alpha >= 1 else g_alpha
 
-                if d_alpha + g_alpha >= 2 and extend_level != 10:
+                if d_alpha + g_alpha >= 2 and extend_level != 8:
                     transform = self.discriminator.extend()
                     self.generator.extend()
                     d_alpha = 0
@@ -489,7 +557,8 @@ class ProGAN:
                     itter_d_loss.append(log_d_loss)
                     step_losses_d.append(log_d_loss)
                 self.step_losses_d.append(np.mean(itter_d_loss).item())
-                d_alpha += self.alpha_addition
+                if d_alpha < 1:
+                    d_alpha += self.d_alpha_addition
 
                 ### Generator optim ###
                 ext = False
@@ -513,15 +582,22 @@ class ProGAN:
                     itter_g_loss.append(log_g_loss)
                     step_losses_g.append(log_g_loss)
                 self.step_losses_g.append(np.mean(itter_g_loss).item())
-                g_alpha += self.alpha_addition
+                if g_alpha < 1:
+                    g_alpha += self.g_alpha_addition
 
                 if step % self.save_step == 0:
-                    self.save(epoch)
+                    self.save(epoch=epoch, extend_level=extend_level, step=step, alpha_d=d_alpha, alpha_g=g_alpha)
             self.epoch_losses_g.append(np.mean(step_losses_g).item())
             self.epoch_losses_d.append(np.mean(step_losses_d).item())
-            self.save(self.epochs)
+            self.save(epoch=self.epochs, extend_level=extend_level, step=0, alpha_d=d_alpha, alpha_g=g_alpha)
             self.graph()
 
 
-progan = ProGAN(alpha_addition=1, cuda=False, batch_size=1, epochs=1)
+progan = ProGAN(epochs=1, batch_size=2)
 progan.train()
+
+
+'''
+Discriminator, epoch: 0, step: 620, itter: 1, batch: 620/20000, d_loss: -2.7397656440734863, gp: 0.13235074281692505, real_val: 2.9852075576782227, fake_val: -1.0780653953552246, extend level: 0, alpha: 0.031000000000000374
+Generator, epoch: 0, step: 620, itter: 0, batch: 620/20000, g_loss: 0.5508434176445007, val: -0.5508434176445007, extend level: 0, alpha: 0.031000000000000374
+'''
