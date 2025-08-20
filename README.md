@@ -5,7 +5,7 @@ This repo contains multiple models of GAN, trained to generate full body anime c
 Download and install anaconda from: https://www.anaconda.com/download/success
 and create env using these commands:
 ```
-conda create --name mygan python=3.11 # This creates conda env with python3.11 (you can change mygan to whatever you want)
+conda create --name mygan python=3.9 # This creates conda env with python3.9 (you can change mygan to whatever you want)
 
 conda activate mygan # activates env
 
