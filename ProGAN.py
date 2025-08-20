@@ -111,7 +111,7 @@ class MinibatchStd(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, latent_size = 512, alpha_addition = 0.01):
+    def __init__(self, device, latent_size = 512, alpha_addition = 0.01):
         super(Generator, self).__init__()
 
         self.latent_size = latent_size
@@ -119,6 +119,7 @@ class Generator(nn.Module):
         self.alpha = 0
         self.upsample = nn.UpsamplingNearest2d(scale_factor=2)
         self.alpha_addition = alpha_addition
+        self.device = device
 
         first = nn.Sequential(
             ELRLinear(self.latent_size, self.latent_size * 4 * 4),
@@ -147,19 +148,19 @@ class Generator(nn.Module):
 
             if self.step == 5:
                 self.to_rgb_old = self.to_rgb_new
-                self.to_rgb_new = ELRConv(256, 3, 3, (1, 2), 1)
+                self.to_rgb_new = ELRConv(256, 3, 3, (1, 2), 1).to(self.device)
             elif self.step == 6:
                 self.to_rgb_old = self.to_rgb_new
-                self.to_rgb_new = ELRConv(128, 3, 3, (1, 2), 1)
+                self.to_rgb_new = ELRConv(128, 3, 3, (1, 2), 1).to(self.device)
             elif self.step == 7:
                 self.to_rgb_old = self.to_rgb_new
-                self.to_rgb_new = ELRConv(64, 3, 3, (1, 2), 1)
+                self.to_rgb_new = ELRConv(64, 3, 3, (1, 2), 1).to(self.device)
             elif self.step == 8:
                 self.to_rgb_old = self.to_rgb_new
-                self.to_rgb_new = ELRConv(32, 3, 3, (1, 2), 1)
+                self.to_rgb_new = ELRConv(32, 3, 3, (1, 2), 1).to(self.device)
             elif self.step == 9:
                 self.to_rgb_old = self.to_rgb_new
-                self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1)
+                self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1).to(self.device)
             self.alpha = 0
     def forward(self, x, alpha):
         self.alpha = alpha
@@ -183,14 +184,15 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, alpha_addition = 0.01):
+    def __init__(self, device, alpha_addition = 0.01):
         super(Discriminator, self).__init__()
         self.downsample = nn.AvgPool2d(kernel_size=2, stride=2)
         self.step = 1
         self.alpha = 0
         self.alpha_addition = alpha_addition
+        self.device = device
 
-        self.from_rgb = nn.ModuleList([])
+        self.from_rgb = nn.ModuleList([]).to(self.device)
 
         self.resolution = (4, 2)
         self.transform = transforms.Compose([
@@ -218,17 +220,17 @@ class Discriminator(nn.Module):
             ConvBlock(16, 16, 3, 1, 1, .2, False),
             ConvBlock(16, 32, 3, 1, 1, .2, False),
             self.downsample
-        )
+        ).to(self.device)
         last = nn.Sequential(
             MinibatchStd(),
             ConvBlock(513, 512, 3, 1, 1, .2, False),
             ConvBlock(512, 512, 4, 1, 0, .2, False),
             nn.Flatten(),
             ELRLinear(512, 1)
-        )
+        ).to(self.device)
         self.chain = nn.ModuleList([
             last,
-        ])
+        ]).to(self.device)
 
         self.blocks = nn.ModuleList([
             BlockD(512, 512),  # 2
@@ -239,7 +241,7 @@ class Discriminator(nn.Module):
             BlockD(64, 128),   # 7
             BlockD(32, 64),    # 8
             first                                    # 9
-        ])
+        ]).to(self.device)
     def extend(self):
         if self.step != 9:
             self.step += 1
@@ -273,7 +275,7 @@ class Discriminator(nn.Module):
 
 
 class ProGAN:
-    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, latent_size = 512, alpha_addition = 0.01, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
+    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, latent_size = 512, alpha_addition = 0, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
 
         self.batch_size = batch_size
         self.epochs = epochs
@@ -296,8 +298,8 @@ class ProGAN:
 
         print("device: ", self.device)
 
-        self.generator = Generator(latent_size = self.latent_size, alpha_addition=self.g_alpha_addition).to(self.device)
-        self.discriminator = Discriminator(alpha_addition=self.d_alpha_addition).to(self.device)
+        self.generator = Generator(latent_size = self.latent_size, alpha_addition=self.g_alpha_addition, device = self.device).to(self.device)
+        self.discriminator = Discriminator(alpha_addition=self.d_alpha_addition, device = self.device).to(self.device)
 
         self.optim_g = optim.Adam(self.generator.parameters(), lr=lr_g, betas=g_betas)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=lr_d, betas=d_betas)
@@ -511,5 +513,5 @@ class ProGAN:
             self.graph()
 
 
-progan = ProGAN(alpha_addition=0, cuda=True, batch_size=16)
+progan = ProGAN(alpha_addition=1, cuda=True, batch_size=16, epochs=1)
 progan.train()
