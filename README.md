@@ -42,7 +42,7 @@ or rewrite my code, so it fits to your dataset.
 **Generated Pictures**
 -
 
-**Small GAN**
+**Small GAN** - this only exsample, It can be better if you train It more
 
 <img width="64" height="128" alt="gen11" src="https://github.com/user-attachments/assets/e739cd49-fea8-4f23-853b-e9fb7229fb6b" />
 <img width="64" height="128" alt="gen9" src="https://github.com/user-attachments/assets/2e0f14ed-ed07-4fcf-9ab4-f4d4f5505108" />
