@@ -14,7 +14,11 @@ from torchvision.transforms import v2 as transforms
 
 from matplotlib import pyplot as plt
 from PIL import Image
+from datetime import datetime
 
+run_name = datetime.now().strftime("progan_%Y%m%d-%H%M%S")
+log_dir = os.path.join("runs", run_name)
+writer = SummaryWriter(log_dir)
 
 class PixelNorm(nn.Module):
     def __init__(self, eps = 1e-8):
@@ -164,7 +168,7 @@ class Generator(nn.Module):
                 self.to_rgb_old = self.to_rgb_new
                 self.to_rgb_new = ELRConv(16, 3, 3, (1, 2), 1).to(self.device)
             self.alpha = 0
-    def forward(self, x, alpha):
+    def forward(self, x, alpha = 1):
         self.alpha = alpha
         x_old = None
         for block in range(0, self.step):
@@ -254,7 +258,7 @@ class Discriminator(nn.Module):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
         return self.transform
-    def forward(self, x, alpha):
+    def forward(self, x, alpha = 1):
         self.alpha = alpha
         if self.step != 9:
             if self.step != 1:
@@ -424,12 +428,21 @@ class ProGAN:
     def generate(self, noise = None, number = None):
         self.generator.eval()
 
+        steps = None
+        if number is not None:
+            split = number.split("-")
+            epochs = int(split[0])
+            steps = int(split[1])
+            e_steps = (epochs * self.batch_size)
+            steps = steps + e_steps
+
         noise = noise if noise is not None else torch.randn(1, self.latent_size, 1, 1).to(self.device)
         number = number if number is not None else random.randint(0, 99999)
 
         with torch.no_grad():
-            image = self.generator(noise, 1)
-        image = image.detach().cpu().squeeze().permute(1, 2, 0).numpy()
+            image_t = self.generator(noise, 1)
+        image_t = image_t.detach().cpu().squeeze()
+        image = image_t.permute(1, 2, 0).numpy()
         image = (image + 1) / 2
         image = (image * 255).astype(np.uint8)
 
@@ -439,6 +452,11 @@ class ProGAN:
             os.makedirs(path)
         path = f"{path}/gen{number}.png"
         Image.fromarray(image).save(path)
+
+        if steps is not None:
+            writer.add_image('Generated images', image_t, global_step=steps)
+            writer.flush()
+
         print(f"--- Saved generated image on {path} ---")
 
         self.generator.train()
@@ -519,6 +537,9 @@ class ProGAN:
         self.generator.train()
         self.discriminator.train()
 
+        global_d_itter = 0
+        global_g_itter = 0
+
         for epoch in range(self.start_epochs, self.epochs):
             step_losses_g = []
             step_losses_d = []
@@ -574,6 +595,14 @@ class ProGAN:
                     self.itter_losses_d.append(log_d_loss)
                     itter_d_loss.append(log_d_loss)
                     step_losses_d.append(log_d_loss)
+
+                    global_d_itter += 1
+                    writer.add_scalar('discriminator loss', log_d_loss, global_d_itter)
+                    writer.add_scalar('discriminator real img detection', log_real_val, global_d_itter)
+                    writer.add_scalar('discriminator fake img detection', log_fake_val, global_d_itter)
+                    writer.flush()
+                    writer.close()
+
                 self.step_losses_d.append(np.mean(itter_d_loss).item())
 
                 ### Generator optim ###
@@ -597,6 +626,13 @@ class ProGAN:
                     self.itter_losses_g.append(log_g_loss)
                     itter_g_loss.append(log_g_loss)
                     step_losses_g.append(log_g_loss)
+
+                    global_g_itter += 1
+                    writer.add_scalar('generator loss', log_g_loss, global_g_itter)
+                    writer.add_scalar('generator dis value', log_fake_val, global_g_itter)
+                    writer.flush()
+                    writer.close()
+
                 self.step_losses_g.append(np.mean(itter_g_loss).item())
 
                 if (step % self.save_step) == 0:
@@ -611,7 +647,8 @@ class ProGAN:
         self.graph()
         number = f"{self.epochs}-0"
         self.generate(noise=self.fixed_noise, number=number)
+        writer.close()
 
 if __name__ == '__main__':
-    progan = ProGAN(epochs=15, batch_size=128, load=True)
+    progan = ProGAN(epochs=99999, batch_size=128, load=False)
     progan.train()
