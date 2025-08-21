@@ -612,5 +612,5 @@ class ProGAN:
         self.generate(noise=self.fixed_noise, number=number)
 
 if __name__ == '__main__':
-    progan = ProGAN(epochs=15, batch_size=128, load=False)
+    progan = ProGAN(epochs=15, batch_size=128, load=True)
     progan.train()
