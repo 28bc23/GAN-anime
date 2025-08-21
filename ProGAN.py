@@ -454,7 +454,8 @@ class ProGAN:
         Image.fromarray(image).save(path)
 
         if steps is not None:
-            writer.add_image('Generated images', image_t, global_step=steps)
+            img_t = torch.from_numpy(image).permute(2, 0 ,1)
+            writer.add_image('Generated images', img_t, global_step=steps)
             writer.flush()
 
         print(f"--- Saved generated image on {path} ---")
@@ -601,7 +602,6 @@ class ProGAN:
                     writer.add_scalar('discriminator real img detection', log_real_val, global_d_itter)
                     writer.add_scalar('discriminator fake img detection', log_fake_val, global_d_itter)
                     writer.flush()
-                    writer.close()
 
                 self.step_losses_d.append(np.mean(itter_d_loss).item())
 
@@ -631,7 +631,6 @@ class ProGAN:
                     writer.add_scalar('generator loss', log_g_loss, global_g_itter)
                     writer.add_scalar('generator dis value', log_fake_val, global_g_itter)
                     writer.flush()
-                    writer.close()
 
                 self.step_losses_g.append(np.mean(itter_g_loss).item())
 
