@@ -614,11 +614,11 @@ class ProGAN:
                     self.generate(noise=self.fixed_noise, number=number)
             self.epoch_losses_g.append(np.mean(step_losses_g).item())
             self.epoch_losses_d.append(np.mean(step_losses_d).item())
-            self.save(epoch=self.epochs, extend_level=extend_level, step=0, alpha_d=d_alpha, alpha_g=g_alpha)
-            self.graph()
-            number = f"{epoch}-0"
-            self.generate(noise=self.fixed_noise, number=number)
+        self.save(epoch=self.epochs, extend_level=extend_level, step=0, alpha_d=d_alpha, alpha_g=g_alpha)
+        self.graph()
+        number = f"{self.epochs}-0"
+        self.generate(noise=self.fixed_noise, number=number)
 
-
-progan = ProGAN(epochs=1, batch_size=2, load=False)
-progan.train()
+if __name__ == '__main__':
+    progan = ProGAN(epochs=15, batch_size=128, load=False)
+    progan.train()
