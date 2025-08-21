@@ -7,6 +7,7 @@ import torch
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from torchvision import datasets
 from torchvision.transforms import v2 as transforms
@@ -561,13 +562,13 @@ class ProGAN:
                     d_loss = torch.mean(fake_val) - torch.mean(real_val) + self.lambda_gp * gp
                     d_loss.backward()
                     self.optim_d.step()
-                    
+
                     log_real_val = torch.mean(real_val.detach()).item()
                     log_fake_val = torch.mean(fake_val.detach()).item()
                     log_d_loss = d_loss.item()
-                    
+
                     print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}, extend level: {extend_level}, alpha: {d_alpha}")
-                    
+
                     self.d_real_values.append(log_real_val)
                     self.d_fake_values.append(log_fake_val)
                     self.itter_losses_d.append(log_d_loss)
@@ -586,12 +587,12 @@ class ProGAN:
                     g_loss = -torch.mean(fake_val)
                     g_loss.backward()
                     self.optim_g.step()
-                    
+
                     log_g_loss = g_loss.item()
                     log_fake_val = torch.mean(fake_val.detach()).item()
-                    
+
                     print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, g_loss: {log_g_loss}, val: {log_fake_val}, extend level: {extend_level}, alpha: {g_alpha}")
-                    
+
                     self.g_values.append(log_fake_val)
                     self.itter_losses_g.append(log_g_loss)
                     itter_g_loss.append(log_g_loss)
