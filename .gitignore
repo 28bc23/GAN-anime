@@ -3,6 +3,7 @@ test.py
 .idea/
 smallWGAN.py
 progan_epoch*
+.github
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
