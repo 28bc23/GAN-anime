@@ -16,10 +16,6 @@ from matplotlib import pyplot as plt
 from PIL import Image
 from datetime import datetime
 
-run_name = datetime.now().strftime("progan_%Y%m%d-%H%M%S")
-log_dir = os.path.join("runs", run_name)
-writer = SummaryWriter(log_dir)
-
 class PixelNorm(nn.Module):
     def __init__(self, eps = 1e-8):
         super(PixelNorm, self).__init__()
@@ -341,6 +337,11 @@ class ProGAN:
         self.d_fake_values = []
 
         self.g_values = []
+
+        run_name = datetime.now().strftime("run_%Y%m%d-%H%M%S")
+        print("Tensorboard name: ", run_name)
+        self.writer = SummaryWriter(f"runs/ProGAN/{run_name}")
+
     def get_dataset(self):
         transform = transforms.Compose([
             transforms.ToImage(),
@@ -455,8 +456,8 @@ class ProGAN:
 
         if steps is not None:
             img_t = torch.from_numpy(image).permute(2, 0 ,1)
-            writer.add_image('Generated images', img_t, global_step=steps)
-            writer.flush()
+            self.writer.add_image('Generated images', img_t, global_step=steps)
+            self.writer.flush()
 
         print(f"--- Saved generated image on {path} ---")
 
@@ -598,10 +599,10 @@ class ProGAN:
                     step_losses_d.append(log_d_loss)
 
                     global_d_itter += 1
-                    writer.add_scalar('discriminator loss', log_d_loss, global_d_itter)
-                    writer.add_scalar('discriminator real img detection', log_real_val, global_d_itter)
-                    writer.add_scalar('discriminator fake img detection', log_fake_val, global_d_itter)
-                    writer.flush()
+                    self.writer.add_scalar('discriminator loss', log_d_loss, global_d_itter)
+                    self.writer.add_scalar('discriminator real img detection', log_real_val, global_d_itter)
+                    self.writer.add_scalar('discriminator fake img detection', log_fake_val, global_d_itter)
+                    self.writer.flush()
 
                 self.step_losses_d.append(np.mean(itter_d_loss).item())
 
@@ -628,9 +629,9 @@ class ProGAN:
                     step_losses_g.append(log_g_loss)
 
                     global_g_itter += 1
-                    writer.add_scalar('generator loss', log_g_loss, global_g_itter)
-                    writer.add_scalar('generator dis value', log_fake_val, global_g_itter)
-                    writer.flush()
+                    self.writer.add_scalar('generator loss', log_g_loss, global_g_itter)
+                    self.writer.add_scalar('generator dis value', log_fake_val, global_g_itter)
+                    self.writer.flush()
 
                 self.step_losses_g.append(np.mean(itter_g_loss).item())
 
@@ -646,7 +647,7 @@ class ProGAN:
         self.graph()
         number = f"{self.epochs}-0"
         self.generate(noise=self.fixed_noise, number=number)
-        writer.close()
+        self.writer.close()
 
 if __name__ == '__main__':
     progan = ProGAN(epochs=99999, batch_size=128, load=False)
