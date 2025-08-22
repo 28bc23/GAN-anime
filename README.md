@@ -3,7 +3,12 @@ This repo contains multiple models of GAN, trained to generate full body anime c
 **Install**
 -
 Download and install anaconda from: https://www.anaconda.com/download/success
-and create env using these commands:
+
+Download cuda 12.9 from: https://developer.nvidia.com/cuda-12-9-0-download-archive
+
+or install it directly into conda env (command below)
+
+create env using these commands:
 ```
 conda create --name mygan python=3.9 # This creates conda env with python3.9 (you can change mygan to whatever you want)
 
@@ -13,7 +18,11 @@ git clone https://github.com/28bc23/GAN-anime.git # clone repo to your working d
 
 cd GAN-anime # go to the main folder
 
-pip3 install -r requirements.txt # install all needed requirements
+conda install cuda -c nvidia/label/cuda-12.9.0 # use if you want to install cuda directly into env
+
+pip3 install torch==2.8.0+cu129 torchvision==0.23.0+cu129 --index-url https://download.pytorch.org/whl/cu129 # install pytorch
+
+pip3 install tensorboard==2.20.0 numpy==1.26.3 matplotlib==3.9.4 Pillow==11.0.0 # install other required libraries
 ```
 
 If you want to just generate images just cpopy pretrained pth files in the same dir like is the main file GAN.py.
