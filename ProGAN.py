@@ -590,7 +590,7 @@ class ProGAN:
                     log_fake_val = torch.mean(fake_val.detach()).item()
                     log_d_loss = d_loss.item()
 
-                    print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}, extend level: {extend_level}, alpha: {d_alpha}")
+                    print(f"Discriminator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, seen imgaes: {seen_imgs_per_phase}, d_loss: {log_d_loss}, gp: {gp}, real_val: {log_real_val}, fake_val: {log_fake_val}, extend level: {extend_level}, alpha: {d_alpha}")
 
                     self.d_real_values.append(log_real_val)
                     self.d_fake_values.append(log_fake_val)
@@ -621,7 +621,7 @@ class ProGAN:
                     log_g_loss = g_loss.item()
                     log_fake_val = torch.mean(fake_val.detach()).item()
 
-                    print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, g_loss: {log_g_loss}, val: {log_fake_val}, extend level: {extend_level}, alpha: {g_alpha}")
+                    print(f"Generator, epoch: {epoch}, step: {step}, itter: {i}, batch: {step}/{len(self.dataset)}, seen imgaes: {seen_imgs_per_phase}, g_loss: {log_g_loss}, val: {log_fake_val}, extend level: {extend_level}, alpha: {g_alpha}")
 
                     self.g_values.append(log_fake_val)
                     self.itter_losses_g.append(log_g_loss)
@@ -650,5 +650,5 @@ class ProGAN:
         self.writer.close()
 
 if __name__ == '__main__':
-    progan = ProGAN(epochs=99999, batch_size=128, load=False)
+    progan = ProGAN(epochs=99999, batch_size=64, load=True)
     progan.train()
