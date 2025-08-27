@@ -283,7 +283,7 @@ class Discriminator(nn.Module):
 
 
 class ProGAN:
-    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, imgs_per_phase = 80000, fade_in_imgs = 20000, latent_size = 512, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.999), d_betas = (0.5, 0.999)):
+    def __init__(self,load = True, epochs = 5, save_step = 10, g_itter = 1, d_itter = 2, batch_size = 128, imgs_per_phase = 80000, fade_in_imgs = 20000, latent_size = 512, cuda = True, lambda_gp = 10, lr_g = 2e-4, lr_d = 2e-4, g_betas = (0.5, 0.99), d_betas = (0.5, 0.99)):
 
         self.batch_size = batch_size
         self.epochs = epochs
@@ -650,5 +650,5 @@ class ProGAN:
         self.writer.close()
 
 if __name__ == '__main__':
-    progan = ProGAN(epochs=99999, batch_size=64, load=True)
+    progan = ProGAN(epochs=99999, batch_size=16, load=True, d_itter=1, g_itter=2, lr_d=1e-4, lr_g=1e-4)
     progan.train()
