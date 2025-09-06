@@ -650,5 +650,5 @@ class ProGAN:
         self.writer.close()
 
 if __name__ == '__main__':
-    progan = ProGAN(epochs=99999, batch_size=16, load=True, d_itter=1, g_itter=2, lr_d=1e-4, lr_g=1e-4)
+    progan = ProGAN(epochs=99999, batch_size=8, load=True, d_itter=1, g_itter=1, lr_d=1e-4, lr_g=1e-4)
     progan.train()
