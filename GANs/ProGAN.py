@@ -340,20 +340,20 @@ class ProGAN:
 
         run_name = datetime.now().strftime("run_%Y%m%d-%H%M%S")
         print("Tensorboard name: ", run_name)
-        self.writer = SummaryWriter(f"runs/ProGAN/{run_name}")
+        self.writer = SummaryWriter(f"../runs/ProGAN/{run_name}")
 
     def get_dataset(self):
         transform = transforms.Compose([
             transforms.ToImage(),
             transforms.ToDtype(torch.float32, scale=True),
         ])
-        dataset = datasets.ImageFolder(root="./data", transform=transform)
+        dataset = datasets.ImageFolder(root="../data", transform=transform)
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, pin_memory=True, drop_last=True)
         return dataloader
 
     def save(self, epoch, extend_level, step, alpha_d, alpha_g, seen_imgs):
         epoch = epoch
-        path = f"./pre-trainedModels/large/ProGAN/{epoch}"
+        path = f"../pre-trainedModels/large/ProGAN/{epoch}"
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -374,7 +374,7 @@ class ProGAN:
         print("--- saved ---")
     def load(self, epoch = None):
         if epoch is None:
-            path = f"pre-trainedModels/large/ProGAN"
+            path = f"../pre-trainedModels/large/ProGAN"
             bigger_num = -1
             for p in os.scandir(path):
                 number = p.name
@@ -447,7 +447,7 @@ class ProGAN:
         image = (image + 1) / 2
         image = (image * 255).astype(np.uint8)
 
-        path = f"generatedImages/ProGAN"
+        path = f"../generatedImages/ProGAN"
 
         if not os.path.exists(path):
             os.makedirs(path)
