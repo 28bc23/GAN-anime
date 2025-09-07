@@ -28,7 +28,7 @@ pip3 install tensorboard==2.20.0 numpy==1.26.3 matplotlib==3.9.4 Pillow==11.0.0 
 If you want to just generate images just cpopy pretrained pth files in the same dir like is the main file GAN.py.
 ex. for GAN.py:
 ```
-cp pre-trainedModels/small/GAN/5160steps/* .
+cp pre-trainedModels/small/GAN/5160steps/* ./GANs
 ```
 
 For training you need to download dataset below* and extract its content to folder called data, so it's same like in the picture below.
