@@ -1,14 +1,18 @@
 import argparse
 import sys
 
+GEN_NAME = "generate"
+INSTALL_NAME = "install"
+TRAIN_NAME = "train"
+
 parser = argparse.ArgumentParser(
     description='gan.py allows you to easily manage GANs in this project for easy generation and training.'
 )
 subparsers = parser.add_subparsers(dest="command")
 
-install_parser = subparsers.add_parser("install", help="install environment for GANs (Only for Linux)")
-generate_parser = subparsers.add_parser("generate", help="set gan to generation mode")
-train_parser = subparsers.add_parser("train", help="set gan to train mode")
+install_parser = subparsers.add_parser(INSTALL_NAME, help="install environment for GANs (Only for Linux)")
+generate_parser = subparsers.add_parser(GEN_NAME, help="set gan to generation mode")
+train_parser = subparsers.add_parser(TRAIN_NAME, help="set gan to train mode")
 
 '''
 Generation
@@ -31,11 +35,40 @@ train_parser.add_argument('-gi', "--generatorItters", type=int, default=1, help=
 train_parser.add_argument('-di', "--discriminatorsItters", type=int, default=1, help="Set discriminators itters (how many times will discriminator optimalize per step)")
 
 
-args = parser.parse_args()
+if __name__ == '__main__':
+    args = parser.parse_args()
 
-if args.command is None:
-    parser.print_help()
-    sys.exit(1)
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
 
-print("Použitý subparser:", args.command)
-print(args)
+    command_mode = args.command
+
+    if command_mode == GEN_NAME:
+        if args.model == "gan":
+            print(f'Generating picture using: gan to {args.output}')
+        else:
+            print(f'Generating picture using: progan to {args.output}')
+    elif command_mode == INSTALL_NAME:
+        print("Installing enviroment")
+    elif command_mode == TRAIN_NAME:
+
+        model = args.model
+        cpu = args.cpu
+        silent = args.silent
+        clean = args.clean
+        epochs = args.epochs
+        batch_size = args.batch
+        d_lr = args.discriminatorLearningRate
+        g_lr = args.generatorLearningRate
+        g_itter = args.generatorItters
+        d_itter = args.discriminatorsItters
+
+        if model == "gan":
+            print(f'Starting training of gan with discriminator learning rate: {d_lr}, generator lr: {g_lr}, epochs: {epochs}, batch size: {batch_size},'
+                  f'generator itters: {g_itter}, discriminatoir itters: {d_itter}, clean training: {clean}, silent mode: {silent}, cuda: {False if cpu else True}')
+        else:
+            print(f'Starting training of progan with discriminator learning rate: {d_lr}, generator lr: {g_lr}, epochs: {epochs}, batch size: {batch_size},'
+                  f'generator itters: {g_itter}, discriminatoir itters: {d_itter}, clean training: {clean}, silent mode: {silent}, cuda: {False if cpu else True}')
+    else:
+        print("Invalid command")
