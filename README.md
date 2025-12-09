@@ -76,7 +76,7 @@ To train the model, you need a dataset. The default configuration uses the **FBA
 
 
 > [!IMPORTANT]  
-> Currently, the gan.py script is under development and is not functional. Therefore, run the given model script directly.
+> Currently, the gan.py script is under development and is not functional. Therefore, run the given model script directly using for example ``python3 GANs/ProGAN.py``.
 > All models are in ``GANs`` directory.
 
 ### 1. Generating Images (Inference)
@@ -84,14 +84,14 @@ To train the model, you need a dataset. The default configuration uses the **FBA
 To generate images using the provided pre-trained models:
 
 1.  Choose a model from the `pre-trainedModels` directory.
-2.  Copy the model files (e.g., `.pth` files) into the `GANs` folder.
+2.  Copy the model files (e.g., `.pth` files) into the `GANs` folder. (only when using smallGan.py)
     ```bash
     # Example: Copying specific pre-trained weights
     cp pre-trainedModels/small/GAN/5160steps/* ./GANs/
     ```
 3.  Run the main script:
     ```bash
-    python gan.py
+    python3 gan.py
     ```
 
 ### 2. Training from Scratch
@@ -101,7 +101,7 @@ Once your dataset is set up in the `data/` folder:
 1.  Open `gan.py` and adjust configurations if necessary (e.g., batch size, image size).
 2.  Start the training loop:
     ```bash
-    python gan.py
+    python3 gan.py
     ```
     *The script will automatically look for images in the `data/` directory and begin training.*
 
