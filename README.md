@@ -77,7 +77,7 @@ To train the model, you need a dataset. The default configuration uses the **FBA
 
 > [!IMPORTANT]  
 > Currently, the gan.py script is under development and is not functional. Therefore, run the given model script directly.
-> All models are in ``./GANs/`` folder
+> All models are in ``GANs`` directory.
 
 ### 1. Generating Images (Inference)
 
