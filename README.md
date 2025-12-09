@@ -1,87 +1,113 @@
-This repo contains multiple models of GAN, trained to generate full body anime characters (mainly womans/girls), or you can train it on different dataset
+# GAN-Anime
 
-**Install**
--
-Download and install anaconda from: https://www.anaconda.com/download/success
+![Python](https://img.shields.io/badge/Python-3.9-blue)
+![Pytorch](https://img.shields.io/badge/Pytorch-2.8-green)
+![CUDA](https://img.shields.io/badge/CUDA-12.9-green)
+![License](https://img.shields.io/badge/License-GPL--3.0-red)
 
-Download cuda 12.9 from: https://developer.nvidia.com/cuda-12-9-0-download-archive
+## 📄 Description
 
-or install it directly into conda env (command below)
+**GAN-Anime** is a collection of Generative Adversarial Networks (GANs) designed primarily for generating **full-body anime characters** (focusing on female characters). 
 
-create env using these commands:
-```
-conda create --name mygan python=3.9 # This creates conda env with python3.9 (you can change mygan to whatever you want)
+This repository allows you to:
+* Generate new unique characters using pre-trained models.
+* Train your own GAN models on custom datasets.
 
-conda activate mygan # activates env
+## 🛠️ Installation
 
-git clone https://github.com/28bc23/GAN-anime.git # clone repo to your working directory
+### Prerequisites
+* [Anaconda](https://www.anaconda.com/download) or Miniconda
+* [CUDA 12.9](https://developer.nvidia.com/cuda-downloads) (Ensure your GPU drivers are compatible)
 
-cd GAN-anime # go to the main folder
+### Setup Guide
 
-conda install cuda -c nvidia/label/cuda-12.9.0 # use if you want to install cuda directly into env
+1.  **Create and activate a Conda environment:**
+    ```bash
+    conda create --name mygan python=3.9
+    conda activate mygan
+    ```
 
-pip3 install torch==2.8.0+cu129 torchvision==0.23.0+cu129 --index-url https://download.pytorch.org/whl/cu129 # install pytorch
+2.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/28bc23/GAN-anime.git
+    cd GAN-anime
+    ```
 
-pip3 install tensorboard==2.20.0 numpy==1.26.3 matplotlib==3.9.4 Pillow==11.0.0 # install other required libraries
-```
+3.  **Install Dependencies:**
+    You can install PyTorch and other requirements using the commands below.
+    
+    *Using pip (Recommended):*
+    ```bash
+    # Install PyTorch with CUDA support
+    pip3 install torch==2.8.0+cu129 torchvision==0.23.0+cu129 --index-url https://download.pytorch.org/whl/cu129
+    # Note: Adjust 'cu121' to match your specific CUDA version if needed.
 
-If you want to just generate images just cpopy pretrained pth files in the same dir like is the main file GAN.py.
-ex. for GAN.py:
-```
-cp pre-trainedModels/small/GAN/5160steps/* ./GANs
-```
+    # Install other required libraries
+    pip3 install -r requirements.txt
+    # if -r requirements.txt doesn't work use this
+    pip3 install tensorboard==2.20.0 numpy==1.26.3 matplotlib==3.9.4 Pillow==11.0.0
+    ```
 
-For training you need to download dataset below* and extract its content to folder called data, so it's same like in the picture below.
-If you need to use different dataset(forexsample you don't want to generate anime characters), you need to prepair it, so it's the same way like the prefered dataset.
-meaning in data folder you will need to have folders called exsactly 00XX and in these folders you need images in .png called 000XXX.png (X represents int value from 0 to 9).
-or rewrite my code, so it fits to your dataset.
+## 📂 Dataset Preparation
 
-*Dataset: https://huggingface.co/datasets/skytnt/fbanimehq
+To train the model, you need a dataset. The default configuration uses the **FBAnimeHQ** dataset.
 
-<img width="397" height="490" alt="Example of folder layout for generating images from a pre-trained model and training your own model" src="https://github.com/user-attachments/assets/06d8a40e-814f-4be7-94c5-fd32155398b8" />
+1.  **Download the dataset:**
+    [HuggingFace: skytnt/fbanimehq](https://huggingface.co/datasets/skytnt/fbanimehq)
 
-**Models**
--
-- *smallGAN* - resolution 128x64 - most pre-trained model: 5160 steps
-- *smallWGAN* - 128x64 **REMOVED**
-- *PROGAN* - TODO: pre-train && optim, resolution 1024x512
+2.  **Organize the folders:**
+    Extract the dataset into a folder named `data` in the root directory. The structure must be as follows:
+
+    ```text
+    GAN-anime/
+    ├── data/
+    │   ├── 0000/
+    │   │   ├── 000001.png
+    │   │   └── ...
+    │   ├── 0001/
+    │   └── ...
+    ├── gan.py
+    └── ...
+    ```
+
+> **Note:** If you use a custom dataset, ensure it follows this directory structure (numbered folders containing images), or modify the data loading section.
+
+## 🚀 Usage
 
 
+> [!IMPORTANT]  
+> Currently, the gan.py script is under development and is not functional. Therefore, run the given model script directly.
+> All models are in ``./GANs/`` folder
 
-**Generated Pictures**
--
+### 1. Generating Images (Inference)
 
-**Small GAN** - this only exsample, It can be better if you train It more
+To generate images using the provided pre-trained models:
 
-<img width="64" height="128" alt="gen11" src="https://github.com/user-attachments/assets/e739cd49-fea8-4f23-853b-e9fb7229fb6b" />
-<img width="64" height="128" alt="gen9" src="https://github.com/user-attachments/assets/2e0f14ed-ed07-4fcf-9ab4-f4d4f5505108" />
-<img width="64" height="128" alt="gen8" src="https://github.com/user-attachments/assets/df5e26be-347d-4bd8-841b-2dc97d1a98a1" />
-<img width="64" height="128" alt="gen7" src="https://github.com/user-attachments/assets/f167ff05-c046-4e01-86ae-e0ddcf04da7f" />
-<img width="64" height="128" alt="gen6" src="https://github.com/user-attachments/assets/4e4beb86-0921-40f7-b10d-c56a0ed8bb7c" />
-<img width="64" height="128" alt="gen5" src="https://github.com/user-attachments/assets/18258b49-f4c0-4c4c-9fac-9e440dd8ff4b" />
-<img width="64" height="128" alt="gen400" src="https://github.com/user-attachments/assets/b69e86ba-3066-45e5-97a4-8172e5e42e27" />
-<img width="64" height="128" alt="gen360" src="https://github.com/user-attachments/assets/5c620e0b-3dce-40c7-a669-c9564dded36f" />
-<img width="64" height="128" alt="gen220" src="https://github.com/user-attachments/assets/fea6f5b5-30e0-48ea-ba58-e0bcd83abe01" />
-<img width="64" height="128" alt="gen200" src="https://github.com/user-attachments/assets/2615f2cd-10ce-4ee7-a634-b07ace2276db" />
-<img width="64" height="128" alt="gen190" src="https://github.com/user-attachments/assets/5e415bac-f1fc-4e36-aced-aa2d9432828e" />
-<img width="64" height="128" alt="gen180" src="https://github.com/user-attachments/assets/0433b384-a595-4b65-b2bd-dd3f456c77fe" />
-<img width="64" height="128" alt="gen170" src="https://github.com/user-attachments/assets/7a32c08c-ab05-4ef4-ba78-45747ffd9962" />
-<img width="64" height="128" alt="gen160" src="https://github.com/user-attachments/assets/bc542b99-6355-4e9b-ad6b-1214fb34d8a2" />
-<img width="64" height="128" alt="gen150" src="https://github.com/user-attachments/assets/90ddca5c-acd9-45a8-8f45-e3e5dfe4771b" />
-<img width="64" height="128" alt="gen140" src="https://github.com/user-attachments/assets/c32a18a0-c118-4033-9cfe-0d08df5bebfd" />
-<img width="64" height="128" alt="gen130" src="https://github.com/user-attachments/assets/ebd4ca36-b539-4509-87ad-0aac3561c7a7" />
-<img width="64" height="128" alt="gen120" src="https://github.com/user-attachments/assets/7e63fe71-eda2-4964-a566-c1c188337309" />
-<img width="64" height="128" alt="gen70" src="https://github.com/user-attachments/assets/63d6a1b4-6b9e-4601-b9fa-8798c62dd310" />
-<img width="64" height="128" alt="gen19" src="https://github.com/user-attachments/assets/41db57d3-7eb2-440d-a1a8-16815bc26872" />
-<img width="64" height="128" alt="gen18" src="https://github.com/user-attachments/assets/aadda9fd-5242-409a-a069-a6c78b97bdef" />
-<img width="64" height="128" alt="gen17" src="https://github.com/user-attachments/assets/116d2bd5-da8f-4b80-854d-e9aeeffdfdf6" />
-<img width="64" height="128" alt="gen15" src="https://github.com/user-attachments/assets/4fd48cb4-5746-47fd-96e8-a5f30fd28e21" />
-<img width="64" height="128" alt="gen13" src="https://github.com/user-attachments/assets/411413e7-4cab-4adb-8533-26b8e055fa6b" />
-<img width="64" height="128" alt="gen12" src="https://github.com/user-attachments/assets/17a03e08-462e-46c5-b21a-a84f46cd1cd3" />
-<img width="64" height="128" alt="gen20" src="https://github.com/user-attachments/assets/e07f53b4-8576-4b19-970c-3b77906afa64" />
-<img width="64" height="128" alt="gen3770" src="https://github.com/user-attachments/assets/27a9d5ef-5416-4d4c-a54d-8d0561669f4f" />
-<img width="64" height="128" alt="gen3800" src="https://github.com/user-attachments/assets/0c8925f0-516f-43ab-8e32-d7d131fa1b89" />
-<img width="64" height="128" alt="gen3740" src="https://github.com/user-attachments/assets/6b5026a7-830e-4651-b535-eae3bacf4792" />
-<img width="64" height="128" alt="gen2940" src="https://github.com/user-attachments/assets/15da5259-4f0e-4c43-b4ea-5047cb9fc108" />
+1.  Choose a model from the `pre-trainedModels` directory.
+2.  Copy the model files (e.g., `.pth` files) into the `GANs` folder.
+    ```bash
+    # Example: Copying specific pre-trained weights
+    cp pre-trainedModels/small/GAN/5160steps/* ./GANs/
+    ```
+3.  Run the main script:
+    ```bash
+    python gan.py
+    ```
 
-*I would appreciate feedback on how to improve my GANs, thx.*
+### 2. Training from Scratch
+
+Once your dataset is set up in the `data/` folder:
+
+1.  Open `gan.py` and adjust configurations if necessary (e.g., batch size, image size).
+2.  Start the training loop:
+    ```bash
+    python gan.py
+    ```
+    *The script will automatically look for images in the `data/` directory and begin training.*
+
+## 📜 License
+
+This project is licensed under the **GPL-3.0 License**. See the [LICENSE](LICENSE) file for details.
+
+---
+**Author:** [28bc23](https://github.com/28bc23)
