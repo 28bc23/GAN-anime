@@ -5,6 +5,9 @@
 ![CUDA](https://img.shields.io/badge/CUDA-12.9-green)
 ![License](https://img.shields.io/badge/License-GPL--3.0-red)
 
+> [!Warning]
+> This repository is no longer under active development
+
 ## 📄 Description
 
 **GAN-Anime** is a collection of Generative Adversarial Networks (GANs) designed primarily for generating **full-body anime characters** (focusing on female characters). 
